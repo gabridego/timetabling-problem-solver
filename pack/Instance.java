@@ -17,6 +17,7 @@ public class Instance {
 	private Map<Integer,List<Integer>> listOfExamsPerStudent = new LinkedHashMap<>();
 	private Map<Integer,List<Integer>> listOfStudentsPerExam = new LinkedHashMap<>();
 	private Integer numberOfExams;
+	private Integer numberOfStudents;
 	private Integer maxExam;
 	private Integer[][] conflictMatrix;
 	private Map<Integer,Integer> conflictingStudents = new LinkedHashMap<>();
@@ -87,6 +88,7 @@ public class Instance {
 			System.out.println("Error reading " + instanceName + ".slo");
 			System.exit(-1);
 		}
+		this.numberOfStudents = this.listOfExamsPerStudent.keySet().size();
 		
 		// Feed conflict matrix with number of conflicting students
 		for(int i : this.listOfStudentsPerExam.keySet())
@@ -147,6 +149,10 @@ public class Instance {
 
 	public Integer getNumberOfSlots() {
 		return numberOfSlots;
+	}
+	
+	public Integer getNumberOfStudents() {
+		return numberOfStudents;
 	}
 
 	public Map<Integer, List<Integer>> getListOfExamsPerStudent() {
