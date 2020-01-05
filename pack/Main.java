@@ -1,14 +1,17 @@
 package pack;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
 
 	public static void main(String[] args) {
+		long start = System.nanoTime();
 		if(args.length != 3 || !args[1].equals("-t")) {
 			System.out.println("Arguments error!");
 			System.exit(-1);
 		}
+		long dur = TimeUnit.SECONDS.toNanos(Integer.parseInt(args[2]));
 		Instance instance = new Instance(args[0]);
 		//System.out.println(instance.getListOfStudentsPerExam().keySet());
 		/*for(Integer[] v : instance.getConflictMatrix()) {
@@ -31,16 +34,19 @@ public class Main {
 			e.printStackTrace();
 		}
 		System.out.println(ind.getFitness());*/
+		Population pop = new Population(5,instance);
+		System.out.println(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		/*int i=0;
 		for(Individual ind : pop.getPopulation())
 			try {
-				System.out.println(ind.getFitness());
+				//System.out.println(ind.getFitness());
 				ind.printIndividual(args[0] + "_" + i++ + "test.sol");
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}*/
-		Population pop = new Population(5,instance);
+		/*while(System.nanoTime() < start + dur)
+			System.out.println("a");*/
 	}
 
 }

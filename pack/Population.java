@@ -9,6 +9,7 @@ public class Population {
 		pop = new Individual[popSize];
 		for(int i = 0; i < popSize; i++) {
 			pop[i] = new Individual(instance);
+			System.out.println(1/pop[i].getFitness());
 		}
 	}
 

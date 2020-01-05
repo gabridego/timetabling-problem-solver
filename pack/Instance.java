@@ -12,16 +12,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class Instance {
-	private Map<Integer,Integer> numberOfStudentsPerExam = new LinkedHashMap<>();
+	private Map<Integer,Integer> numberOfStudentsPerExam = new LinkedHashMap<>();		//map exam to number of students
 	private Integer numberOfSlots;
-	private Map<Integer,List<Integer>> listOfExamsPerStudent = new LinkedHashMap<>();
-	private Map<Integer,List<Integer>> listOfStudentsPerExam = new LinkedHashMap<>();
+	private Map<Integer,List<Integer>> listOfExamsPerStudent = new LinkedHashMap<>();	//map student to list of his exams
+	private Map<Integer,List<Integer>> listOfStudentsPerExam = new LinkedHashMap<>();	//map exam to list of its students
 	private Integer numberOfExams;
 	private Integer numberOfStudents;
 	private Integer maxExam;
-	private Integer[][] conflictMatrix;
-	private Map<Integer,Integer> conflictingStudents = new LinkedHashMap<>();
-	
+	private Integer[][] conflictMatrix;		//at position i,j number of conflicting students for exams i and j
+	private Map<Integer,Integer> conflictingStudents = new LinkedHashMap<>();			//map exam to number of students in conflict with other exams
+	private List<Integer> examList = new ArrayList<>();
+
 	private void readExams(String fileName) throws IOException {
 		try (Stream<String> stream = Files.lines(Paths.get(fileName))) {
 	        stream.forEach(s -> {
@@ -30,6 +31,7 @@ public class Instance {
 	        		numberOfStudentsPerExam.put(Integer.valueOf(parts[0]), Integer.valueOf(parts[1]));
 	        });
 		}
+		this.examList.addAll(this.numberOfStudentsPerExam.keySet());
 		// System.out.println(exams);
 	}
 	
@@ -135,6 +137,10 @@ public class Instance {
 		return maxExam;
 	}
 
+	public Integer getNumberOfExams() {
+		return numberOfExams;
+	}
+
 	public Integer[][] getConflictMatrix() {
 		return conflictMatrix;
 	}
@@ -161,6 +167,10 @@ public class Instance {
 
 	public Map<Integer, List<Integer>> getListOfStudentsPerExam() {
 		return listOfStudentsPerExam;
+	}
+	
+	public List<Integer> getExamList() {
+		return examList;
 	}
 
 }
