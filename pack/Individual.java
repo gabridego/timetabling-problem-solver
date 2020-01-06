@@ -186,7 +186,7 @@ public class Individual {
 	private void moveExam(Integer exam, Integer destTimeslot) {
 		Integer formerSlot = assignment.get(exam);
 		
-		// Move the exam in the assignments and timeslots
+		// Move the exam in the assignments and temporarily remove it from timeslots for computations
 		timeslots.get(formerSlot).remove(exam);
 		assignment.put(exam, destTimeslot);
 		
@@ -209,7 +209,29 @@ public class Individual {
 			}
 		acceptableExamsPerTimeslot.get(destTimeslot).removeAll(conflicts);
 		
-		// TODO: update fitness as well!
+		// Update fitness, to avoid recomputing it entirely
+		float p = 1/fitness*instance.getNumberOfStudents();
+		int startIndex, endIndex;
+			// Subtract the contribution to penalty of the previous position
+		startIndex = (formerSlot - 5 < 0)? 0 : formerSlot-5;
+		endIndex = (formerSlot + 5 > timeslots.size())? timeslots.size()-1 : formerSlot+5;
+		for (int i=startIndex; i<= endIndex; i++) {
+			if (i == formerSlot) continue;		// ignore the former slot as there are no conflicts
+			int stud_count = timeslots.get(i).stream().map(e -> matrix[exam][e]).mapToInt(Integer::intValue).sum();
+			p -= Math.pow(2, 5 - Math.abs(i-formerSlot))*stud_count;
+		}
+			// Add the contribution of the new one
+		startIndex = (destTimeslot - 5 < 0)? 0 : destTimeslot-5;
+		endIndex = (destTimeslot + 5 > timeslots.size())? timeslots.size()-1 : destTimeslot+5;
+		for (int i=startIndex; i<= endIndex; i++) {
+			if (i == destTimeslot) continue;		// ignore the final slot as there are no conflicts
+			int stud_count = timeslots.get(i).stream().map(e -> matrix[exam][e]).mapToInt(Integer::intValue).sum();
+			p += Math.pow(2, 5 - Math.abs(i-formerSlot))*stud_count;
+		}
+		this.fitness = 1 / (p/instance.getNumberOfStudents());
+		
+		// Place the exam in the new timeslot, now that all computations are done
+		timeslots.get(destTimeslot).add(exam);	
 	}
 	
 	public void mutate() {
