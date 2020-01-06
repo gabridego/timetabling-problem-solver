@@ -34,13 +34,16 @@ public class Individual {
 		return false;
 	}
 	
-	public void checkFeasibility(Map<Integer,Integer> assignment, Integer[][] conflictMatrix) {
+	public boolean checkFeasibility(Map<Integer,Integer> assignment, Integer[][] conflictMatrix) {
 		for(Map.Entry<Integer,Integer> e1 : assignment.entrySet()) {
 			for(Map.Entry<Integer,Integer> e2 : assignment.entrySet()) {
-				if(e1.getValue() == e2.getValue() && conflictMatrix[e1.getKey()][e2.getKey()] != 0)
+				if(e1.getValue() == e2.getValue() && conflictMatrix[e1.getKey()][e2.getKey()] != 0) {
 					System.out.println("Conflicting exams " + e1.getKey() + " and " + e2.getKey() + " are both scheduled in slot " + e1.getValue());
+					return false;
+				}
 			}
 		}
+		return true;
 	}
 	
 	// Generation of an individual, greedy
@@ -163,11 +166,11 @@ public class Individual {
 	private List<Set<Integer>> computeAcceptabilitiesPerTimeslot(){
 		List<Set<Integer>> ret = new ArrayList<>();
 		ret.add(new HashSet<>()); 	// empty list for timeslot 0, which is not used
-		int nExams = instance.getNumberOfExams();
+		int k=0, nExams = instance.getNumberOfExams();
 		Integer[][] matrix = instance.getConflictMatrix();
 		List<Integer> originalList = instance.getExamList();
 		for (Set<Integer> slot : this.timeslots) {
-			if (slot.equals(timeslots.get(0))) 	// timeslot 0 is fictious
+			if (k++ == 0) 	// timeslot 0 is fictious
 				continue;
 			Set<Integer> exams = new HashSet<>(originalList);	// new object to avoid modifications
 			for (Integer exam : slot) {
@@ -183,7 +186,7 @@ public class Individual {
 		return ret;
 	}
 	
-	private void moveExam(Integer exam, Integer destTimeslot) {
+	public void moveExam(Integer exam, Integer destTimeslot) {
 		Integer formerSlot = assignment.get(exam);
 		
 		// Move the exam in the assignments and temporarily remove it from timeslots for computations
@@ -208,21 +211,22 @@ public class Individual {
 					acceptableExamsPerTimeslot.get(formerSlot).add(other);
 			}
 		acceptableExamsPerTimeslot.get(destTimeslot).removeAll(conflicts);
+		acceptableExamsPerTimeslot.get(formerSlot).add(exam);	// the given exam is also acceptable in the timeslots where it comes from
 		
 		// Update fitness, to avoid recomputing it entirely
 		float p = 1/fitness*instance.getNumberOfStudents();
 		int startIndex, endIndex;
 			// Subtract the contribution to penalty of the previous position
-		startIndex = (formerSlot - 5 < 0)? 0 : formerSlot-5;
-		endIndex = (formerSlot + 5 > timeslots.size())? timeslots.size()-1 : formerSlot+5;
+		startIndex = (formerSlot - 5 < 1)? 1 : formerSlot-5;
+		endIndex = (formerSlot + 5 > timeslots.size()-1)? timeslots.size()-1 : formerSlot+5;
 		for (int i=startIndex; i<= endIndex; i++) {
 			if (i == formerSlot) continue;		// ignore the former slot as there are no conflicts
 			int stud_count = timeslots.get(i).stream().map(e -> matrix[exam][e]).mapToInt(Integer::intValue).sum();
 			p -= Math.pow(2, 5 - Math.abs(i-formerSlot))*stud_count;
 		}
 			// Add the contribution of the new one
-		startIndex = (destTimeslot - 5 < 0)? 0 : destTimeslot-5;
-		endIndex = (destTimeslot + 5 > timeslots.size())? timeslots.size()-1 : destTimeslot+5;
+		startIndex = (destTimeslot - 5 < 1)? 1 : destTimeslot-5;
+		endIndex = (destTimeslot + 5 > timeslots.size()-1)? timeslots.size()-1 : destTimeslot+5;
 		for (int i=startIndex; i<= endIndex; i++) {
 			if (i == destTimeslot) continue;		// ignore the final slot as there are no conflicts
 			int stud_count = timeslots.get(i).stream().map(e -> matrix[exam][e]).mapToInt(Integer::intValue).sum();
