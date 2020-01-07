@@ -25,6 +25,9 @@ public class Individual {
 	private List<Integer> penaltyPerSlot;
 	private float fitness;
 	
+	private static int individualCounter = 0;
+	private int individualId;
+	
 	// Returns true if exam is in conflict with another one scheduled in slot
 	public Boolean hasConflict(Integer slot, Integer exam, Map<Integer,Integer> assignment, Integer[][] conflictMatrix) {
 		for(Map.Entry<Integer,Integer> e : assignment.entrySet()) {
@@ -89,6 +92,7 @@ public class Individual {
 	
 	// Generation of an individual, greedy
 	public Individual(Instance instance) {
+		this.individualId = individualCounter++;
 		// METHOD 1: 	exams ordered for total number of conflicting students, for each exam randomly select a slot and if there is no conflict it
 		// 				is assigned. if conflict, randomly try with the other slots, if no one is ok restart from the beginning. 
 		// Random r = new Random(SEED);
@@ -372,6 +376,10 @@ public class Individual {
 
 	public List<Set<Integer>> getAcceptableExamsPerTimeslot() {
 		return acceptableExamsPerTimeslot;
+	}
+	
+	public int getId() {
+		return individualId;
 	}
 
 }

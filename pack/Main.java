@@ -34,7 +34,7 @@ public class Main {
 			e.printStackTrace();
 		}
 		System.out.println(ind.getFitness());*/
-		Population pop = new Population(5,instance);
+		Population pop = new Population(5,instance, 40, start, dur); //(popSize, instance, %popSubstituted, startTime, algorithmDuration)
 		System.out.println(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		/*int i=0;
 		for(Individual ind : pop.getPopulation())
@@ -47,6 +47,9 @@ public class Main {
 			}*/
 		/*while(System.nanoTime() < start + dur)
 			System.out.println("a");*/
+		
+		//Starting evolutionary process:
+		pop.evolve();
 	}
 
 }
