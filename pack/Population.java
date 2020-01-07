@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -15,6 +16,7 @@ public class Population {
 	private long duration;
 	private float[] genOpProbabilities;
 	
+	//Arbitrary parameters (NOT BAD at 0.9 0.5 0.5 0.7)
 	final private float crossover = (float) 0.9;
 	final private float mutation = (float) 0.05;
 	final private float inversion = (float) 0.05;
@@ -50,14 +52,14 @@ public class Population {
 	}
 	
 	private void adjustProbabilities(int iteration) {
-		float passedTimePercentage = (float) 100/( (float) duration / ( (float) (System.nanoTime()-this.start) ) );
+		float passedTimePercentage = (float) 100/( (float) duration / ( (float) (System.nanoTime()-this.start) ) );	//compute percentage of elapsed time
 		System.out.println(passedTimePercentage+"% of the available time has passed");
-
-		float movingProbability = (float) this.maxMovingProbability*passedTimePercentage/100;
+																													//Starting from a fixed max amount of movable probability
+		float movingProbability = (float) this.maxMovingProbability*passedTimePercentage/100;						//move a portion of that amount proportionally to elapsed time
 		
-		this.genOpProbabilities[0] = this.crossover - movingProbability;
-		this.genOpProbabilities[1] = (float) (this.mutation + movingProbability*0.66);
-		this.genOpProbabilities[2] = (float) (this.inversion + movingProbability*0.34);
+		this.genOpProbabilities[0] = this.crossover - movingProbability;											//from the crossover (most probable at beginning)
+		this.genOpProbabilities[1] = (float) (this.mutation + movingProbability*0.66);								//to mutation (most probable at end)
+		this.genOpProbabilities[2] = (float) (this.inversion + movingProbability*0.34);								//to inversion (more probable at end wrt beginning)
 		
 		System.out.println("");
 		System.out.println("New probabilities:");
@@ -65,7 +67,7 @@ public class Population {
 		System.out.println("	mutation: "+this.genOpProbabilities[1]);
 		System.out.println("	inversion: "+this.genOpProbabilities[2]);
 		
-		try {										//TODO: remove this waiting block
+		try {																										//TODO: remove this waiting block
 			Thread.sleep(500);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
@@ -111,12 +113,13 @@ public class Population {
 
 		
 		int iteratCnt = 1;
+		Random rand = new Random();
 		while(iteratCnt>0 && (System.nanoTime()-start)<duration) {						//Endless loop - TODO: remove time constraint
 			System.out.println("Iteration: "+iteratCnt);
 			
 			
 			//1. Select individuals for reproduction
-			Map<Integer, Float> sortedFitnessMap =										//Map with the only elements to riproduce
+			Map<Integer, Float> sortedFitnessMap =										//Map with the only elements to reproduce
 				    fitnessMap.entrySet().stream()
 				       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())) 	//TODO: Reverse order can be removed depending on the fitness measure we chose
 				       .limit(individualsToUpdatePerIteration)
@@ -126,9 +129,19 @@ public class Population {
 			
 			
 			//2. Reproduction
-			this.adjustProbabilities(iteratCnt);
-			
-			
+			this.adjustProbabilities(iteratCnt);										//Rebalance probabilities according to elapsed time
+			int r = rand.nextInt(100) + 1;												//Generate random number in range [1,100]
+			Individual[] offsprings = new Individual[individualsToUpdatePerIteration];	//the amount of generated offsprings is the same of the substituted ones			
+			if (r<=genOpProbabilities[0]*100) {											//Pick genetic operator according to generated number and probabilities
+				//TODO: implement crossover --> add offsprings to their array
+				System.out.println("crossover");
+			} else if (r<=100*(genOpProbabilities[0]+genOpProbabilities[1])) {
+				//TODO: implement mutation --> add offsprings to their array
+				System.out.println("mutation");
+			} else {
+				//TODO: implement inversion --> add offsprings to their array
+				System.out.println("inversion");
+			}
 			
 			
 			
