@@ -51,7 +51,7 @@ public class Population {
 		return pop;
 	}
 	
-	private void adjustProbabilities(int iteration) {
+	private void adjustProbabilities() {
 		float passedTimePercentage = (float) 100/( (float) duration / ( (float) (System.nanoTime()-this.start) ) );	//compute percentage of elapsed time
 		System.out.println(passedTimePercentage+"% of the available time has passed");
 																													//Starting from a fixed max amount of movable probability
@@ -75,6 +75,12 @@ public class Population {
 		}
 	}
 	
+	private Individual[] hybridization(Individual[] offsprings) {
+		//TODO: implement local search method to explore neighborhood of each offspring to improve it
+		Individual[] result = offsprings;
+		return result;
+	}
+	
 	public void evolve() {
 		//Method to be called on the Population object to start the evolutionary process after initialization
 		/*
@@ -84,14 +90,17 @@ public class Population {
 		 * 	1.1 Decide how many must reproduce 															--> DONE: percentage passed as Population argument
 		 * 	1.2 Find the ones with best fitness 														--> DONE: stream the map, sort it and limit it
 		 * 2. Reproduction through some genetic operators											--> W.I.P.
-		 * 	2.1 Manage probabilistic aspect of genetic operator selection (possibly with varying probabilities at runtime, this may exploit the time arg)
-		 *   2.1.1 Bigger use of crossover at beginning
-		 *   2.1.2 Mutation to diversify (Comparison of best fitness with average fitness)
-		 * 	2.2 Apply one of the three genetic operators: crossover (standard/order/partiallyMapped), mutation, inversion
-		 *  2.3 Decide whether to improve offsprings or not through local search (hybridization --> memetic algorithm) 
+		 * 	2.1 Manage probabilistic aspect of genetic operator selection 								--> DONE: custom probability distribution system
+		 * 		(possibly with varying probabilities at runtime, this may exploit the time arg)
+		 *   2.1.1 Bigger use of crossover at beginning													--> DONE
+		 *   2.1.2 Mutation to diversify (Comparison of best fitness with average fitness)				--> DONE
+		 * 	2.2 Apply one of the three genetic operators: 												--> W.I.P.
+		 * 		crossover (standard/order/partiallyMapped), mutation, inversion
+		 *  2.3 Decide whether to improve offsprings or not through local search 						--> W.I.P.
+		 *  	(hybridization --> memetic algorithm) 
 		 * 3. Population updating
 		 * 	3.1 select whether to use Population replacement or Steady state and with which parameters (elitist approach / % of pop subtituted) ( keep constant total population)
-		 * 	3.2
+		 * 	3.2 select weakest elements of the population to be substituted
 		 * 4. Save the result (write the file)
 		 * 	4.1 find new best solution in the population
 		 * 	4.2 write the file (pay attention to the format) with the new best solution
@@ -119,17 +128,17 @@ public class Population {
 			
 			
 			//1. Select individuals for reproduction
-			Map<Integer, Float> sortedFitnessMap =										//Map with the only elements to reproduce
+			Map<Integer, Float> strongestFitnessMap =										//Map with the only elements to reproduce
 				    fitnessMap.entrySet().stream()
-				       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())) 	//TODO: Reverse order can be removed depending on the fitness measure we chose
+				       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
 				       .limit(individualsToUpdatePerIteration)
 				       .collect(Collectors.toMap(
 				    		   Map.Entry::getKey, Map.Entry::getValue, (e1,e2) -> e1, LinkedHashMap::new));
-			//System.out.println(sortedFitnessMap);
+			//System.out.println(strongestFitnessMap);
 			
 			
 			//2. Reproduction
-			this.adjustProbabilities(iteratCnt);										//Rebalance probabilities according to elapsed time
+			this.adjustProbabilities();										//Rebalance probabilities according to elapsed time
 			int r = rand.nextInt(100) + 1;												//Generate random number in range [1,100]
 			Individual[] offsprings = new Individual[individualsToUpdatePerIteration];	//the amount of generated offsprings is the same of the substituted ones			
 			if (r<=genOpProbabilities[0]*100) {											//Pick genetic operator according to generated number and probabilities
@@ -143,7 +152,22 @@ public class Population {
 				System.out.println("inversion");
 			}
 			
+			//Hybridization step:
+			offsprings = this.hybridization(offsprings);
 			
+			
+			//3. Population updating
+			Map<Integer, Float> weakestFitnessMap =										//Map with the elements to substitute
+				    fitnessMap.entrySet().stream()
+				       .sorted(Map.Entry.comparingByValue()) 	
+				       .limit(individualsToUpdatePerIteration)
+				       .collect(Collectors.toMap(
+				    		   Map.Entry::getKey, Map.Entry::getValue, (e1,e2) -> e1, LinkedHashMap::new));
+			//System.out.println(weakestFitnessMap);
+			//TODO: add elitist approach to use in case individualsToUpdatePerIteration = popSize
+			
+			
+			//4. Save results
 			
 			iteratCnt++;
 			System.out.println("");
