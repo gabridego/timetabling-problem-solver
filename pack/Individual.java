@@ -217,6 +217,7 @@ public class Individual {
 		//fw.close();
 	}
 
+	// List all the exams that can be moved to any given timeslots, for all timeslots
 	private List<Set<Integer>> computeAcceptabilitiesPerTimeslot(){
 		List<Set<Integer>> ret = new ArrayList<>();
 		ret.add(new HashSet<>()); 	// empty list for timeslot 0, which is not used
@@ -240,6 +241,7 @@ public class Individual {
 		return ret;
 	}
 	
+	// Move an exam from its current assignment to a destination timeslot (use in conjunction with acceptabilities
 	public void moveExam(Integer exam, Integer destTimeslot) {
 		Integer formerSlot = assignment.get(exam);
 		
@@ -294,28 +296,31 @@ public class Individual {
 		timeslots.get(destTimeslot).add(exam);
 	}
 	
-	public void mutate() {
-		Random rng = new Random();
-		
-		// Pick a timeslot in a probabilistic manner
-		List<Integer> tsProb = new ArrayList<>();
-		acceptableExamsPerTimeslot.stream().map(set -> set.size()).forEachOrdered(n -> tsProb.add(n));
-		int tot = tsProb.stream().mapToInt(Integer::intValue).sum();
-		int slot = 0;
-		int value = rng.nextInt(tot) - tsProb.get(slot);
-		while (value >= 0) {
-			slot ++;
-			value -= tsProb.get(slot);
+	// Move a randomly chosen exam to another timeslot, maintaining feasibility. Returns false if no mutations were possible
+		public boolean mutate() {
+			Random rng = new Random();
+			
+			// Pick a timeslot in a probabilistic manner
+			List<Integer> tsProb = new ArrayList<>();
+			acceptableExamsPerTimeslot.stream().map(set -> set.size()).forEachOrdered(n -> tsProb.add(n));
+			int tot = tsProb.stream().mapToInt(Integer::intValue).sum();
+			int slot = 0;
+			int value = rng.nextInt(tot) - tsProb.get(slot);
+			while (value >= 0) {
+				slot ++;
+				value -= tsProb.get(slot);
+			}
+			
+			// Pick an acceptable exam for that timeslot
+			List<Integer> acceptables = new ArrayList<>(acceptableExamsPerTimeslot.get(slot));
+			if (acceptables.isEmpty()) return false; 	// no mutations could be performed
+			Collections.shuffle(acceptables);
+			int exam = acceptables.get(rng.nextInt(acceptables.size()));
+			
+			// Move the chosen exam in the new timeslot
+			moveExam(exam, slot);
+			return true;
 		}
-		
-		// Pick an acceptable exam for that timeslot
-		List<Integer> acceptables = new ArrayList<>(acceptableExamsPerTimeslot.get(slot));
-		Collections.shuffle(acceptables);
-		int exam = acceptables.get(rng.nextInt(acceptables.size()));
-		
-		// Move the chosen exam in the new timeslot
-		moveExam(exam, slot);
-	}
 	
 	// Compute penalty caused by each slot, returns double of right one, check
 	private void computePenaltyPerSlot() {
