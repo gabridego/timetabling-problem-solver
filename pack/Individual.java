@@ -416,26 +416,77 @@ public class Individual {
 		return new Individual(this);
 	}
 	
+	// Extract the chosen timeslots from the individual and return them (used in crossover). Place all the removed ones in timeslot 0.
+	private Map<Integer, Set<Integer>> xoverExtract(List<Integer> slots) {
+		Map<Integer, Set<Integer>> ret = new HashMap<>();
+		slots.forEach(slot -> {			// For each timeslot, change all the exam assignments to timeslot 0 (ausiliary). These will be reinserted later
+			Set<Integer> removed = timeslots.set(slot.intValue(), new HashSet<Integer>());
+			for (Integer ex : removed)
+				assignment.replace(ex, 0);
+			timeslots.get(0).addAll(removed);
+			ret.put(slot, removed);
+		});
+		return ret;
+	}
+	
+	// Remove those exams that would become duplicates in the new solution (used in crossover). Assignments will be replaced in the next step.
+	private void xoverDuplicates(Map<Integer, Set<Integer>> incoming) {
+		for (Integer slot : incoming.keySet()) 
+			for (Integer exam : incoming.get(slot)) {	// For all the exams in the incoming timeslot, change their assignment and remove them from their current timeslot
+				Integer pos = this.assignment.get(exam);
+				this.timeslots.get(pos).remove(exam);		// Note that this also removes the exams that have been placed in timeslot 0 in the previous step
+			}
+	}
+	
+	// Insert the timeslots from the other solution
+	private void xoverInsertOtherTimeslots(Map<Integer, Set<Integer>> incoming) {
+		for (Integer slot : incoming.keySet()) {
+			for (Integer exam : incoming.get(slot)) 
+				this.assignment.replace(exam, slot);
+			this.timeslots.set(slot, incoming.get(slot));
+		}
+	}
+	
 	// Crossover
-	/* 
-	 * TODO: add percentage to choose the timeslots to swap (put in a list) based on penalty
-	 * TODO: for each timeslot: extract the corresponding sets from timeslots,
-	 * 							remove the exams that are in common with the new combination and mark the removed ones as missing
-	 * 							insert each extracted combination in the opposite solution
-	 * 							insert the missing elements and throw an exception in case
-	 * TODO: if an exception arose, return the original parents. Else, return this+parent2.
+	/* For each timeslot: 		extract the corresponding sets of exams from timeslots and remove all the 'exported' exams (--> xoverExtract() )
+	 * 							remove the exams that are in common with the imported timeslot i.e. duplicates (--> xoverDuplicates() ) 
+	 * 							insert each imported timeslot (--> xoverInsertOtherTimeslots() )
+	 * 							reinsert the missing elements and throw an exception in case (--> xoverReinsertMissingExams() )
 	 */
 	public List<Individual> crossover(Individual parent2, float percentage){
 		List<Individual> ret = new ArrayList<>();
-		Individual p1 = this.clone(), p2=parent2.clone();
+		Individual p1 = this.clone(), p2=parent2.clone();	// p1 and p2 will be modified
+		computePenaltyPerSlot();
 		
 		// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
+		int nSlots = (int)(percentage * instance.getNumberOfSlots());
+		nSlots = (nSlots < 1? 1 : nSlots);
+		List<Integer> electedSlots = new ArrayList<>();
+		while (electedSlots.size() < nSlots)
+			electedSlots.add(randomSlotByProbability(this.penaltyPerSlot));
+		
+		// Extract the chosen timeslots, also marking all the removing as exams as 'missing' (i.e. assigned to -1)
+		Map<Integer, Set<Integer>> extracted1 = p1.xoverExtract(electedSlots), extracted2 = p2.xoverExtract(electedSlots);
+		// Prepare assignment and timeslots so that no duplicates will be formed by inserting the new assignments
+		p1.xoverDuplicates(extracted2); p2.xoverDuplicates(extracted1);
+		// Insert the timeslots coming from the other solution
+		p1.xoverInsertOtherTimeslots(extracted2); p2.xoverInsertOtherTimeslots(extracted1);
+		// Reinsert missing elements, throwing an exception in case it fails
+		try { 
+			p1.xoverReinsertMissingExams(p1.timeslots.get(0));
+			p2.xoverReinsertMissingExams(p2.timeslots.get(0));
+			ret.add(p1); ret.add(p2);		// feasible solutions reached, this is what will be returned
+		}
+		catch (CrossoverInsertionFailedException e) {	// failed to get back to feasibility, return parents
+			ret.add(this);	// "this" is parent 1 
+			ret.add(parent2);
+		}
 		
 		return ret;
 	}
 	
 	// TODO: insert the missing exams among the acceptable timeslots
-	private void reinsertMissingExams(Set<Integer> missingExams) throws CrossoverInsertionFailedException{
+	private void xoverReinsertMissingExams(Set<Integer> missingExams) throws CrossoverInsertionFailedException{
 		
 	}
 	
