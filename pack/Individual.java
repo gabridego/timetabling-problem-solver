@@ -22,7 +22,7 @@ public class Individual {
 	private Map<Integer,Integer> assignment = new HashMap<>();
 	private List<Set<Integer>> timeslots = new ArrayList<>();	// BEWARE!! Index == 0 is unused
 	private List<Set<Integer>> acceptableExamsPerTimeslot;		// this will be kept up-to-date as mutations and crossovers happen
-	private List<Integer> penaltyPerSlot = new ArrayList<>();
+	private int[] penaltyPerSlot;
 	private float fitness;
 	
 	private static int individualCounter = 0;
@@ -85,7 +85,7 @@ public class Individual {
 		for (int i=startIndex; i<= endIndex; i++) {
 			if (i == destTimeslot) continue;		// ignore the final slot as there are no conflicts
 			int stud_count = timeslots.get(i).stream().map(e -> matrix[exam][e]).mapToInt(Integer::intValue).sum();
-			p += Math.pow(2, 5 - Math.abs(i-formerSlot))*stud_count;
+			p += Math.pow(2, 5 - Math.abs(i-destTimeslot))*stud_count;
 		}
 		this.fitness = 1 / (p/instance.getNumberOfStudents());
 	}
@@ -251,46 +251,9 @@ public class Individual {
 		
 		// Update acceptabilities
 		updateAcceptabilities(exam, formerSlot, destTimeslot, instance.getConflictMatrix());
-		/*Integer[][] matrix = instance.getConflictMatrix();
-		HashSet<Integer> conflicts = new HashSet<>();
-		for (Integer other=1; other <= instance.getNumberOfExams(); other++)
-			if (matrix[exam][other] != 0) {
-				conflicts.add(other);
-				// Then check if "roommates" in the former slot share this conflict,
-				// to decide whether it can be removed or not.
-				boolean is_shared = false;
-				for (Integer formerRoommate : timeslots.get(formerSlot))
-					if (matrix[formerRoommate][other] != 0) {
-						is_shared = true;
-						break;
-					}
-				if (!is_shared)	// conflict removed
-					acceptableExamsPerTimeslot.get(formerSlot).add(other);
-			}
-		acceptableExamsPerTimeslot.get(destTimeslot).removeAll(conflicts);
-		acceptableExamsPerTimeslot.get(formerSlot).add(exam);	// the given exam is also acceptable in the timeslots where it comes from*/
 		
 		// Update fitness, to avoid recomputing it entirely
 		updateFitness(exam, formerSlot, destTimeslot, instance.getConflictMatrix());
-		/*float p = 1/fitness*instance.getNumberOfStudents();
-		int startIndex, endIndex;
-			// Subtract the contribution to penalty of the previous position
-		startIndex = (formerSlot - 5 < 1)? 1 : formerSlot-5;
-		endIndex = (formerSlot + 5 > timeslots.size()-1)? timeslots.size()-1 : formerSlot+5;
-		for (int i=startIndex; i<= endIndex; i++) {
-			if (i == formerSlot) continue;		// ignore the former slot as there are no conflicts
-			int stud_count = timeslots.get(i).stream().map(e -> matrix[exam][e]).mapToInt(Integer::intValue).sum();
-			p -= Math.pow(2, 5 - Math.abs(i-formerSlot))*stud_count;
-		}
-			// Add the contribution of the new one
-		startIndex = (destTimeslot - 5 < 1)? 1 : destTimeslot-5;
-		endIndex = (destTimeslot + 5 > timeslots.size()-1)? timeslots.size()-1 : destTimeslot+5;
-		for (int i=startIndex; i<= endIndex; i++) {
-			if (i == destTimeslot) continue;		// ignore the final slot as there are no conflicts
-			int stud_count = timeslots.get(i).stream().map(e -> matrix[exam][e]).mapToInt(Integer::intValue).sum();
-			p += Math.pow(2, 5 - Math.abs(i-formerSlot))*stud_count;
-		}
-		this.fitness = 1 / (p/instance.getNumberOfStudents());*/
 		
 		// Place the exam in the new timeslot, now that all computations are done
 		timeslots.get(destTimeslot).add(exam);
@@ -322,31 +285,31 @@ public class Individual {
 		return true;
 	}
 	
-	// Compute penalty caused by each slot, returns double of right one, check
+	// Compute penalty caused by each slot
 	private void computePenaltyPerSlot() {
-		penaltyPerSlot = new ArrayList<>();
-		int slot = 0, p, other;
+		penaltyPerSlot = new int[instance.getNumberOfSlots() + 1];
+		int slot = 0, other;
+		float res;
 		Integer[] conflicts;
 		
 		for(Set<Integer> exams : this.timeslots) {
-			p = 0;
 			if (slot == 0) { 	// timeslot 0 is fictious
-				penaltyPerSlot.add(p);
 				slot++;
 				continue;
 			}
-			int startIndex = (slot - 5 < 1)? 1 : slot-5;
+			//int startIndex = (slot - 5 < 1)? 1 : slot-5;
 			int endIndex = (slot + 5 > timeslots.size()-1)? timeslots.size()-1 : slot+5;
 			for(int exam : exams) {		//for each exam in slot
 				conflicts = instance.getConflictMatrix()[exam];
 				for(int i = 1; i < conflicts.length; i++) {
 					other = this.assignment.get(i);		//timeslot of exam i
-					if(other >= startIndex && other <= endIndex) {
-						p += Math.pow(2, 5 - Math.abs(slot - other))*conflicts[i]; 	//if the two exams are in same slot conflicts[i]==0
+					if(other > slot && other <= endIndex) {
+						res = (float) (Math.pow(2, 5 - Math.abs(slot - other))*conflicts[i]); 	//if the two exams are in same slot conflicts[i]==0
+						penaltyPerSlot[slot] += res;
+						penaltyPerSlot[other] += res;
 					}
 				}
 			}
-			penaltyPerSlot.add(p);
 			slot++;
 		}
 	}
@@ -358,46 +321,46 @@ public class Individual {
 		
 		computePenaltyPerSlot();
 		//more penalty a slot cause more probable to choose it
-		int tot = this.penaltyPerSlot.stream().mapToInt(Integer::intValue).sum();
-		int value = rng.nextInt(tot) - this.penaltyPerSlot.get(slot1);
+		int tot = Arrays.stream(penaltyPerSlot).sum();
+		int value = rng.nextInt(tot) - this.penaltyPerSlot[slot1];
 		while (value >= 0) {
 			slot1 ++;
-			value -= this.penaltyPerSlot.get(slot1);
+			value -= this.penaltyPerSlot[slot1];
 		}
-		value = rng.nextInt(tot) - this.penaltyPerSlot.get(slot2);
+		value = rng.nextInt(tot) - this.penaltyPerSlot[slot2];
 		while (value >= 0) {
 			slot2 ++;
-			value -= this.penaltyPerSlot.get(slot2);
+			value -= this.penaltyPerSlot[slot2];
 		}
 		
 		if(slot1 == slot2)
 			return;
-		Integer[][] matrix = instance.getConflictMatrix();
+
+		Collections.swap(this.timeslots, slot1, slot2);
+		//Integer[][] matrix = instance.getConflictMatrix();
 		//update assignments, fitness and acceptabilities
 		for(int exam : this.timeslots.get(slot1)) {
 			this.assignment.put(exam, slot2);
-			updateFitness(exam, slot1, slot2, matrix);
+			//updateFitness(exam, slot1, slot2, matrix);
 		}
 		for(int exam : this.timeslots.get(slot2)) {
 			this.assignment.put(exam, slot1);
-			updateFitness(exam, slot2, slot1, matrix);
+			//updateFitness(exam, slot2, slot1, matrix);
 		}
 		
-		Set<Integer> tmp = this.timeslots.remove(slot1);
-		this.timeslots.add(slot1, this.timeslots.remove(slot2));
-		this.timeslots.add(slot2,tmp);
+		this.fitness = 1 / computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());	//inverse objective function
 		this.acceptableExamsPerTimeslot = computeAcceptabilitiesPerTimeslot();
 	}
 	
-	//empty an expensive timeslot and try to move the exams where they cost less, TODO: test
+	//empty an expensive timeslot and try to move the exams, TODO: decide if destination is slot that contributes more or less to total penalty
 	public void desrupt() {
 		Random rng = new Random();
 		this.computePenaltyPerSlot();
-		int tot = this.penaltyPerSlot.stream().mapToInt(Integer::intValue).sum(), slot=0, minp, newSlot = 0;
-		int value = rng.nextInt(tot) - this.penaltyPerSlot.get(slot);
+		int tot = Arrays.stream(this.penaltyPerSlot).sum(), slot=0, maxp, newSlot = 0;
+		int value = rng.nextInt(tot) - this.penaltyPerSlot[slot];
 		while (value >= 0) {
 			slot ++;
-			value -= this.penaltyPerSlot.get(slot);
+			value -= this.penaltyPerSlot[slot];
 		}
 		
 		List<Integer> exams = new ArrayList<>(this.timeslots.remove(slot));
@@ -407,10 +370,10 @@ public class Individual {
 		for(int exam : exams) {
 			if(exam == 0)
 				continue;
-			minp = Integer.MAX_VALUE;
-			for(int i = 1; i < this.acceptableExamsPerTimeslot.size(); i++) {	//we put an exam in the acceptable slot with that contribute less to total penalty
-				if(this.acceptableExamsPerTimeslot.get(i).contains(exam) && this.penaltyPerSlot.get(i) < minp) {
-					minp = this.penaltyPerSlot.get(i);
+			maxp = -1;
+			for(int i = 1; i < this.acceptableExamsPerTimeslot.size(); i++) {
+				if(this.acceptableExamsPerTimeslot.get(i).contains(exam) && this.penaltyPerSlot[i] < maxp) {
+					maxp = this.penaltyPerSlot[i];
 					newSlot = i;
 				}
 			}
@@ -427,7 +390,7 @@ public class Individual {
 		this.individualId = toCopy.individualId;	// int
 		this.instance = toCopy.instance;			// immutable Instance
 		this.assignment = new HashMap<Integer, Integer>(toCopy.assignment);	// mutable Map
-		this.penaltyPerSlot = new ArrayList<>(toCopy.penaltyPerSlot);		// mutable List
+		this.penaltyPerSlot = toCopy.penaltyPerSlot;		// mutable List
 		
 		this.acceptableExamsPerTimeslot = new ArrayList<Set<Integer>>();
 		this.timeslots = new ArrayList<Set<Integer>>();
