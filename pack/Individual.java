@@ -22,7 +22,7 @@ public class Individual {
 	private Map<Integer,Integer> assignment = new HashMap<>();
 	private List<Set<Integer>> timeslots = new ArrayList<>();	// BEWARE!! Index == 0 is unused
 	private List<Set<Integer>> acceptableExamsPerTimeslot;		// this will be kept up-to-date as mutations and crossovers happen
-	private List<Integer> penaltyPerSlot;
+	private List<Integer> penaltyPerSlot = new ArrayList<>();
 	private float fitness;
 	
 	private static int individualCounter = 0;
@@ -297,30 +297,30 @@ public class Individual {
 	}
 	
 	// Move a randomly chosen exam to another timeslot, maintaining feasibility. Returns false if no mutations were possible
-		public boolean mutate() {
-			Random rng = new Random();
-			
-			// Pick a timeslot in a probabilistic manner
-			List<Integer> tsProb = new ArrayList<>();
-			acceptableExamsPerTimeslot.stream().map(set -> set.size()).forEachOrdered(n -> tsProb.add(n));
-			int tot = tsProb.stream().mapToInt(Integer::intValue).sum();
-			int slot = 0;
-			int value = rng.nextInt(tot) - tsProb.get(slot);
-			while (value >= 0) {
-				slot ++;
-				value -= tsProb.get(slot);
-			}
-			
-			// Pick an acceptable exam for that timeslot
-			List<Integer> acceptables = new ArrayList<>(acceptableExamsPerTimeslot.get(slot));
-			if (acceptables.isEmpty()) return false; 	// no mutations could be performed
-			Collections.shuffle(acceptables);
-			int exam = acceptables.get(rng.nextInt(acceptables.size()));
-			
-			// Move the chosen exam in the new timeslot
-			moveExam(exam, slot);
-			return true;
+	public boolean mutate() {
+		Random rng = new Random();
+		
+		// Pick a timeslot in a probabilistic manner
+		List<Integer> tsProb = new ArrayList<>();
+		acceptableExamsPerTimeslot.stream().map(set -> set.size()).forEachOrdered(n -> tsProb.add(n));
+		int tot = tsProb.stream().mapToInt(Integer::intValue).sum();
+		int slot = 0;
+		int value = rng.nextInt(tot) - tsProb.get(slot);
+		while (value >= 0) {
+			slot ++;
+			value -= tsProb.get(slot);
 		}
+		
+		// Pick an acceptable exam for that timeslot
+		List<Integer> acceptables = new ArrayList<>(acceptableExamsPerTimeslot.get(slot));
+		if (acceptables.isEmpty()) return false; 	// no mutations could be performed
+		Collections.shuffle(acceptables);
+		int exam = acceptables.get(rng.nextInt(acceptables.size()));
+		
+		// Move the chosen exam in the new timeslot
+		moveExam(exam, slot);
+		return true;
+	}
 	
 	// Compute penalty caused by each slot, returns double of right one, check
 	private void computePenaltyPerSlot() {
@@ -420,6 +420,43 @@ public class Individual {
 			this.updateAcceptabilities(exam, slot, newSlot, instance.getConflictMatrix());
 		}
 	}
+	
+	// Create a new Individual, copy of the first (beware of references)
+	private Individual(Individual toCopy) {
+		this.fitness = toCopy.fitness;			// float
+		this.individualId = toCopy.individualId;	// int
+		this.instance = toCopy.instance;			// immutable Instance
+		this.assignment = new HashMap<Integer, Integer>(toCopy.assignment);	// mutable Map
+		this.penaltyPerSlot = new ArrayList<>(toCopy.penaltyPerSlot);		// mutable List
+		
+		this.acceptableExamsPerTimeslot = new ArrayList<Set<Integer>>();
+		this.timeslots = new ArrayList<Set<Integer>>();
+		List<Set<Integer>> ts = toCopy.timeslots;
+		List<Set<Integer>> acc = toCopy.acceptableExamsPerTimeslot;
+		for (int i=0; i<ts.size(); i++) {
+			this.acceptableExamsPerTimeslot.add(new HashSet<Integer>(acc.get(i)));
+			this.timeslots.add(new HashSet<Integer>(ts.get(i)));
+		}
+	}
+	
+	// Wrapper for the private constructor above. Useful to preserve the previous solution, in case some operations fail.
+	public Individual clone() {
+		return new Individual(this);
+	}
+	
+	// Crossover
+	/* 
+	 * TODO: add percentage to choose the portion to modify
+	 * TODO: is partially mapped an option?
+	 * TODO: decide if we need an exception to terminate, and if it will only be used for crossover() of also for mutate()
+	 */
+	public List<Individual> crossover(Individual parent2){
+		List<Individual> ret = new ArrayList<>();
+		Individual p1 = this.clone(), p2=parent2.clone();
+		
+		return ret;
+	}
+	
 	
 	public Map<Integer, Integer> getAssignment() {
 		return assignment;
