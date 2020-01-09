@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +18,8 @@ public class Individual {
 	//private static final int MAX_ITER = 12;
 	//private static final int SEED = 42;
 
+	private Random rng = new Random();
+	
 	private Instance instance;
 	private Map<Integer,Integer> assignment = new HashMap<>();
 	private List<Set<Integer>> timeslots = new ArrayList<>();	// BEWARE!! Index == 0 is unused
@@ -72,7 +73,7 @@ public class Individual {
 	private void updateFitness(Integer exam, int formerSlot, int destTimeslot, Integer[][] matrix) {
 		float p = 1/fitness*instance.getNumberOfStudents();
 		int startIndex, endIndex;
-			// Subtract the contribution to penalty of the previous position
+		// Subtract the contribution to penalty of the previous position
 		startIndex = (formerSlot - 5 < 1)? 1 : formerSlot-5;
 		endIndex = (formerSlot + 5 > timeslots.size()-1)? timeslots.size()-1 : formerSlot+5;
 		for (int i=startIndex; i<= endIndex; i++) {
@@ -98,17 +99,20 @@ public class Individual {
 				conflicts.add(other);
 				// Then check if "roommates" in the former slot share this conflict,
 				// to decide whether it can be removed or not.
-				boolean is_shared = false;
-				for (Integer formerRoommate : timeslots.get(formerSlot))
-					if (matrix[formerRoommate][other] != 0) {
-						is_shared = true;
-						break;
-					}
-				if (!is_shared)	// conflict removed
-					acceptableExamsPerTimeslot.get(formerSlot).add(other);
+				if(formerSlot > 0) {
+					boolean is_shared = false;
+					for (Integer formerRoommate : timeslots.get(formerSlot))
+						if (matrix[formerRoommate][other] != 0) {
+							is_shared = true;
+							break;
+						}
+					if (!is_shared)	// conflict removed
+						acceptableExamsPerTimeslot.get(formerSlot).add(other);
+				}
 			}
 		acceptableExamsPerTimeslot.get(destTimeslot).removeAll(conflicts);
-		acceptableExamsPerTimeslot.get(formerSlot).add(exam);	// the given exam is also acceptable in the timeslots where it comes from
+		if(formerSlot > 0)
+			acceptableExamsPerTimeslot.get(formerSlot).add(exam);	// the given exam is also acceptable in the timeslots where it comes from
 	}
 
 	// Generation of an individual, greedy
@@ -147,7 +151,7 @@ public class Individual {
 		//				at each iteration randomly selects one of the exams with the lowest number of possible slots, one of its available slots, assigns it
 		//				and updates possible slots for conflicting exams. in case an exam can't be placed anywhere restart.
 		this.instance = instance;
-		Random r = new Random();
+		//Random rng = new Random();
 		for (int i=0; i<instance.getNumberOfSlots()+1; i++)
 			this.timeslots.add(new HashSet<>());
 		Map<Integer,List<Integer>> possible = new HashMap<>();		//maps exam to list of its feasible timeslots
@@ -166,7 +170,7 @@ public class Individual {
 
 		while(!possible.isEmpty()) {	//stop when all exams are assigned
 			first = numPossible.keySet().iterator().next();
-			exam = numPossible.get(first).get(r.nextInt(numPossible.get(first).size()));	//randomly selects one of the exam that can be placed in less slots
+			exam = numPossible.get(first).get(rng.nextInt(numPossible.get(first).size()));	//randomly selects one of the exam that can be placed in less slots
 			//if(!this.assignment.containsKey(exam)) {
 			conflicts = instance.getConflictMatrix()[exam];
 			if(possible.get(exam).size() <= 0) {	//if exam can't be placed anywhere start again
@@ -179,7 +183,7 @@ public class Individual {
 				}
 				continue;
 			}
-			slot = possible.get(exam).get(r.nextInt(possible.get(exam).size()));	//get one of possible timeslots
+			slot = possible.get(exam).get(rng.nextInt(possible.get(exam).size()));	//get one of possible timeslots
 			this.assignment.put(exam, slot);
 			this.timeslots.get(slot).add(exam);
 			possible.remove(exam);		//exam is assigned, is removed
@@ -263,7 +267,7 @@ public class Individual {
 	// Move a randomly chosen exam to another timeslot, maintaining feasibility.
 	public Individual mutate() {
 		Individual original = this.clone();
-		Random rng = new Random();
+		//Random rng = new Random();
 		computePenaltyPerSlot();
 
 		// Pick a timeslot in a probabilistic manner based on penalty
@@ -312,7 +316,7 @@ public class Individual {
 
 	// Pick a random slot probabilistically based on penalty
 	private int randomSlotByProbability(int[] probabilities) {
-		Random rng = new Random();
+		//Random rng = new Random();
 		int tot = Arrays.stream(probabilities).sum(), slot=0;
 		int value = rng.nextInt(tot) - probabilities[slot];
 		while (value >= 0) {
@@ -324,30 +328,14 @@ public class Individual {
 
 	// Select two slots in a probabilistic manner and swap them
 	public void swapSlots() {
-		//Random rng = new Random();								// TODO: ok to remove?
 		int slot1 = 0, slot2 = 0;
-
 		computePenaltyPerSlot();
-		//more penalty a slot cause more probable to choose it
-		/*int tot = Arrays.stream(penaltyPerSlot).sum();			// TODO: ok to remove?
-		int value = rng.nextInt(tot) - this.penaltyPerSlot[slot1];
-		while (value >= 0) {
-			slot1 ++;
-			value -= this.penaltyPerSlot[slot1];
-		}*/
 		slot1 = randomSlotByProbability(penaltyPerSlot);
-		
-		/*value = rng.nextInt(tot) - this.penaltyPerSlot[slot2];		// TODO: ok to remove?
-		while (value >= 0) {
-			slot2 ++;
-			value -= this.penaltyPerSlot[slot2];
-		}*/
 		slot2 = randomSlotByProbability(penaltyPerSlot);
 
 		if(slot1 == slot2)
 			return;
 
-		Collections.swap(this.timeslots, slot1, slot2);
 		//Integer[][] matrix = instance.getConflictMatrix();
 		//update assignments, fitness and acceptabilities
 		for(int exam : this.timeslots.get(slot1)) {
@@ -358,6 +346,7 @@ public class Individual {
 			this.assignment.put(exam, slot1);
 			//updateFitness(exam, slot2, slot1, matrix);
 		}
+		Collections.swap(this.timeslots, slot1, slot2);
 
 		this.fitness = 1 / computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());	//inverse objective function
 		this.acceptableExamsPerTimeslot = computeAcceptabilitiesPerTimeslot();
@@ -365,15 +354,10 @@ public class Individual {
 
 	//empty an expensive timeslot and try to move the exams, TODO: decide if destination is slot that contributes more or less to total penalty
 	public void desrupt() {
-		//Random rng = new Random();								//TODO: ok to remove?
+		//Random rng = new Random();
 		this.computePenaltyPerSlot();
-		int slot=0, maxp, newSlot = 0;
-		/*int tot = Arrays.stream(this.penaltyPerSlot).sum(); 		//TODO: ok to remove?
-		int value = rng.nextInt(tot) - this.penaltyPerSlot[slot];
-		while (value >= 0) {
-			slot ++;
-			value -= this.penaltyPerSlot[slot];
-		}*/
+		int slot=0, minp, newSlot = 0;
+		List<Integer> possibleSlots = new ArrayList<>();
 		slot = randomSlotByProbability(penaltyPerSlot);
 
 		List<Integer> exams = new ArrayList<>(this.timeslots.remove(slot));
@@ -383,13 +367,17 @@ public class Individual {
 		for(int exam : exams) {
 			if(exam == 0)
 				continue;
-			maxp = -1;
+			minp = Integer.MAX_VALUE;	//we consider slots with minimum contribution
 			for(int i = 1; i < this.acceptableExamsPerTimeslot.size(); i++) {
-				if(this.acceptableExamsPerTimeslot.get(i).contains(exam) && this.penaltyPerSlot[i] < maxp) {
-					maxp = this.penaltyPerSlot[i];
-					newSlot = i;
+				if(this.acceptableExamsPerTimeslot.get(i).contains(exam) && this.penaltyPerSlot[i] <= minp) {	//if a slot can accept the exam and has lowest contribution
+					if(this.penaltyPerSlot[i] < minp) {		//new lowest contribution
+						minp = this.penaltyPerSlot[i];
+						possibleSlots.clear();
+					}
+					possibleSlots.add(i);
 				}
 			}
+			newSlot = possibleSlots.get(rng.nextInt(possibleSlots.size()));		//randomly select one of available slots with lowest penalty
 			this.assignment.put(exam, newSlot);
 			this.timeslots.get(newSlot).add(exam);
 			this.updateFitness(exam, slot, newSlot, instance.getConflictMatrix());
@@ -421,9 +409,9 @@ public class Individual {
 	}
 
 	// Extract the chosen timeslots from the individual and return them (used in crossover). Place all the removed ones in timeslot 0.
-	private Map<Integer, Set<Integer>> xoverExtract(List<Integer> slots) {
+	private Map<Integer, Set<Integer>> xoverExtract(Set<Integer> electedSlots) {
 		Map<Integer, Set<Integer>> ret = new HashMap<>();
-		slots.forEach(slot -> {			// For each timeslot, change all the exam assignments to timeslot 0 (ausiliary). These will be reinserted later
+		electedSlots.forEach(slot -> {			// For each timeslot, change all the exam assignments to timeslot 0 (ausiliary). These will be reinserted later
 			Set<Integer> removed = timeslots.set(slot.intValue(), new HashSet<Integer>());
 			for (Integer ex : removed)
 				assignment.replace(ex, 0);
@@ -465,7 +453,7 @@ public class Individual {
 		// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
 		int nSlots = (int)(percentage * instance.getNumberOfSlots());
 		nSlots = (nSlots < 1? 1 : nSlots);
-		List<Integer> electedSlots = new ArrayList<>();
+		Set<Integer> electedSlots = new HashSet<>();
 		while (electedSlots.size() < nSlots)
 			electedSlots.add(randomSlotByProbability(this.penaltyPerSlot));
 
@@ -479,6 +467,7 @@ public class Individual {
 		try {
 			p1.xoverReinsertMissingExams(p1.timeslots.get(0));
 			p2.xoverReinsertMissingExams(p2.timeslots.get(0));
+			p1.timeslots.get(0).clear(); p2.timeslots.get(0).clear();
 			ret.add(p1); ret.add(p2);		// feasible solutions reached, this is what will be returned
 		}
 		catch (CrossoverInsertionFailedException e) {	// failed to get back to feasibility, return parents
@@ -489,9 +478,54 @@ public class Individual {
 		return ret;
 	}
 
-	// TODO: insert the missing exams among the acceptable timeslots
+	// Insert the missing exams among the acceptable timeslots following an hardest-first policy like in the individual constructor.
+	// Throws an exception if at least an exam can't be placed anywhere
 	private void xoverReinsertMissingExams(Set<Integer> missingExams) throws CrossoverInsertionFailedException{
+		Map<Integer, List<Integer>> possible = new HashMap<>(), numPossible = new TreeMap<>();
+		this.computeAcceptabilitiesPerTimeslot();
+		
+		for(int slot = 1; slot < this.acceptableExamsPerTimeslot.size(); slot++)	//inizialization, maps an exam to its possible slots
+			for(int exam : missingExams)
+				if(this.acceptableExamsPerTimeslot.get(slot).contains(exam)) {
+					if(!possible.containsKey(exam))
+						possible.put(exam, new ArrayList<>());
+					possible.get(exam).add(slot);
+				}
+		int size;
+		for(int exam : missingExams) {		//inizialization, maps a slot to the number of slot that can be placed there
+			size = possible.get(exam).size();
+			if(size <= 0)
+				throw new CrossoverInsertionFailedException();
+			if(!numPossible.containsKey(size))
+				numPossible.put(size, new ArrayList<>());
+			numPossible.get(size).add(exam);
+		}
+		
+		int exam, first, slot;
+		Integer[] conflicts;
+		while(!possible.isEmpty()) {
+			first = numPossible.keySet().iterator().next();
+			exam = numPossible.get(first).get(rng.nextInt(numPossible.get(first).size()));	//randomly selects one of the exam that can be placed in less slots
+			conflicts = instance.getConflictMatrix()[exam];
+			if(possible.get(exam).size() <= 0) 
+				throw new CrossoverInsertionFailedException();
+			slot = possible.get(exam).get(rng.nextInt(possible.get(exam).size()));	//get one of possible timeslots
+			this.assignment.put(exam, slot);
+			this.timeslots.get(slot).add(exam);
+			possible.remove(exam);		//exam is assigned, is removed
 
+			for(int i = 1; i < conflicts.length; i++) {		//update possible slots based on conflicts
+				if(conflicts[i] != 0 && possible.containsKey(i))
+					possible.get(i).remove(slot);
+			}
+
+			numPossible.clear();		//update number of possible slots
+			for(int i : possible.keySet()) {
+				if(!numPossible.containsKey(possible.get(i).size()))
+					numPossible.put(possible.get(i).size(), new ArrayList<>());
+				numPossible.get(possible.get(i).size()).add(i);
+			}
+		}
 	}
 	
 	//Method called from Population at hybridization step
