@@ -484,13 +484,13 @@ public class Individual {
 		Map<Integer, List<Integer>> possible = new HashMap<>(), numPossible = new TreeMap<>();
 		this.computeAcceptabilitiesPerTimeslot();
 		
+		for(int exam : missingExams)
+			possible.put(exam, new ArrayList<>());
 		for(int slot = 1; slot < this.acceptableExamsPerTimeslot.size(); slot++)	//inizialization, maps an exam to its possible slots
 			for(int exam : missingExams)
-				if(this.acceptableExamsPerTimeslot.get(slot).contains(exam)) {
-					if(!possible.containsKey(exam))
-						possible.put(exam, new ArrayList<>());
+				if(this.acceptableExamsPerTimeslot.get(slot).contains(exam))
 					possible.get(exam).add(slot);
-				}
+				
 		int size;
 		for(int exam : missingExams) {		//inizialization, maps a slot to the number of slot that can be placed there
 			size = possible.get(exam).size();
