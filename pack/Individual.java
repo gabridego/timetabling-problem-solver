@@ -493,6 +493,13 @@ public class Individual {
 	private void xoverReinsertMissingExams(Set<Integer> missingExams) throws CrossoverInsertionFailedException{
 
 	}
+	
+	//Method called from Population at hybridization step
+	public Individual hybridize() {
+		//TODO: First approach: first improvement
+		//map<int,int> assignment exam,slot
+		return new Individual(this);
+	}
 
 	public Map<Integer, Integer> getAssignment() {
 		return assignment;

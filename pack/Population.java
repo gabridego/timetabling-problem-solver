@@ -3,6 +3,7 @@ package pack;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -16,25 +17,27 @@ public class Population {
 	private long duration;
 	private float[] genOpProbabilities;
 	
-	//Arbitrary parameters (NOT BAD at 0.9 0.5 0.5 0.7)
+	//Arbitrary parameters (NOT BAD at 0.9 0.1 0.7)
 	final private float crossover = (float) 0.9;
-	final private float mutation = (float) 0.05;
-	final private float inversion = (float) 0.05;
+	final private float mutation = (float) 0.1;
 	final private float maxMovingProbability = (float) 0.7;
 	
 	public Population(Integer popSize, Instance instance, float percentage, long start, long duration) {
 		this.popSize = popSize;
 		
 		this.individualsToUpdatePerIteration=(int) (this.popSize*(percentage/100));
-		if (this.individualsToUpdatePerIteration<1 || this.individualsToUpdatePerIteration>this.popSize) {this.individualsToUpdatePerIteration=1;}
+		if (this.individualsToUpdatePerIteration<1) {
+			this.individualsToUpdatePerIteration=1;
+		} else if(this.individualsToUpdatePerIteration>=this.popSize) {
+			this.individualsToUpdatePerIteration=this.popSize-1;
+		}
 		
 		this.start = start;
 		this.duration=duration;
 		
-		this.genOpProbabilities = new float[3];
+		this.genOpProbabilities = new float[2];
 		this.genOpProbabilities[0]=crossover;
 		this.genOpProbabilities[1]=mutation;
-		this.genOpProbabilities[2]=inversion;
 		
 		pop = new Individual[popSize];
 		for(int i = 0; i < popSize; i++) {
@@ -52,33 +55,33 @@ public class Population {
 	}
 	
 	private void adjustProbabilities() {
+		//TODO: possibly do something more in case crossover/mutation failed at previous iteration
 		float passedTimePercentage = (float) 100/( (float) duration / ( (float) (System.nanoTime()-this.start) ) );	//compute percentage of elapsed time
 		System.out.println(passedTimePercentage+"% of the available time has passed");
 																													//Starting from a fixed max amount of movable probability
 		float movingProbability = (float) this.maxMovingProbability*passedTimePercentage/100;						//move a portion of that amount proportionally to elapsed time
 		
 		this.genOpProbabilities[0] = this.crossover - movingProbability;											//from the crossover (most probable at beginning)
-		this.genOpProbabilities[1] = (float) (this.mutation + movingProbability*0.66);								//to mutation (most probable at end)
-		this.genOpProbabilities[2] = (float) (this.inversion + movingProbability*0.34);								//to inversion (more probable at end wrt beginning)
+		this.genOpProbabilities[1] = this.mutation + movingProbability;												//to mutation (most probable at end)
 		
 		System.out.println("");
 		System.out.println("New probabilities:");
 		System.out.println("	crossover: "+this.genOpProbabilities[0]);
 		System.out.println("	mutation: "+this.genOpProbabilities[1]);
-		System.out.println("	inversion: "+this.genOpProbabilities[2]);
 		
 		try {																										//TODO: remove this waiting block
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			Thread.sleep(250);
+		} catch (InterruptedException e) {}
 	}
 	
 	private Individual[] hybridization(Individual[] offsprings) {
-		//TODO: implement local search method to explore neighborhood of each offspring to improve it
-		Individual[] result = offsprings;
-		return result;
+		Individual[] hybridizedOffsprings = new Individual[individualsToUpdatePerIteration];						//new array with same size as offspings
+		int c = 0;
+		for(Individual i : offsprings) {
+			hybridizedOffsprings[c] = i.hybridize();																//new offsprings are the improved ones
+			c++;
+		}
+		return hybridizedOffsprings;
 	}
 	
 	public void evolve() {
@@ -123,35 +126,93 @@ public class Population {
 		
 		int iteratCnt = 1;
 		Random rand = new Random();
-		while(iteratCnt>0 && (System.nanoTime()-start)<duration) {						//Endless loop - TODO: remove time constraint
+		while(iteratCnt>0 && (System.nanoTime()-start)<duration) {							//Endless loop - TODO: remove time constraint
 			System.out.println("Iteration: "+iteratCnt);
 			
 			
 			//1. Select individuals for reproduction
-			Map<Integer, Float> strongestFitnessMap =										//Map with the only elements to reproduce
-				    fitnessMap.entrySet().stream()
-				       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-				       .limit(individualsToUpdatePerIteration)
+			Map<Integer, Float> strongestFitnessMap =										//Map with the elements to reproduce (plus one)
+				    fitnessMap.entrySet().stream()											//i.e. if want to reproduce 2 elements --> map has 3
+				       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))		//and one of them will be removed randomly
+				       .limit(individualsToUpdatePerIteration+1)
 				       .collect(Collectors.toMap(
 				    		   Map.Entry::getKey, Map.Entry::getValue, (e1,e2) -> e1, LinkedHashMap::new));
-			//System.out.println(strongestFitnessMap);
+			Random q = new Random();														//Get a random number in range [0, individualsToUpdatePerIteration+1]
+			int indexOfElemToBeRemoved = q.nextInt(individualsToUpdatePerIteration+1);		//that will correspond to the position of one of the elements in the map
+			for(int i : strongestFitnessMap.keySet()) {										//the element will be removed in order to have a kind of
+				if (indexOfElemToBeRemoved == 0) {											//randomization in the choice of the best elements to reproduce
+					strongestFitnessMap.remove(i);
+					break;
+				}
+				indexOfElemToBeRemoved--;
+			}																				//strongestFitnessMap now contains the (randomized) individuals to reproduce
 			
 			
 			//2. Reproduction
-			this.adjustProbabilities();										//Rebalance probabilities according to elapsed time
+			this.adjustProbabilities();													//Rebalance probabilities according to elapsed time
 			int r = rand.nextInt(100) + 1;												//Generate random number in range [1,100]
-			Individual[] offsprings = new Individual[individualsToUpdatePerIteration];	//the amount of generated offsprings is the same of the substituted ones			
-			if (r<=genOpProbabilities[0]*100) {											//Pick genetic operator according to generated number and probabilities
-				//TODO: implement crossover --> add offsprings to their array
-				System.out.println("crossover");
-			} else if (r<=100*(genOpProbabilities[0]+genOpProbabilities[1])) {
-				//TODO: implement mutation --> add offsprings to their array
-				System.out.println("mutation");
-			} else {
-				//TODO: implement inversion --> add offsprings to their array
-				System.out.println("inversion");
-			}
+			Individual[] offsprings = new Individual[individualsToUpdatePerIteration];	//the amount of generated offsprings is the same of the substituted ones
 			
+			int reproducedElem = 0;														//keep count of how many reproduced up to now
+			boolean crossoverFlag = false;												//crossover takes two elements --> this is needed to skip an element
+			int tmpElem = -1;															//to store temporarily an element before crossover
+			
+			for (int i : strongestFitnessMap.keySet()){									//loop on the IDs of the individuals to reproduce
+				//System.out.println("CURRENT POPULATION: ");
+				//for (Individual k : pop) {
+				//	System.out.println(k.getId());
+				//}
+				if (crossoverFlag == true) {											//intercept this loop if crossover must be done
+					Individual A=null;
+					Individual B=null;
+					for (Individual ind : pop) {										//find the two individuals
+						//System.out.println("Looking for "+i+" and "+tmpElem+" and found "+ind.getId());
+						if (ind.getId()==i) {
+							A = ind;
+							//System.out.println("found A at "+i);
+						}
+						if (ind.getId()==tmpElem) {
+							B = ind;
+							//System.out.println("found B at "+tmpElem);
+						}
+					}
+					
+					List<Individual> l = A.crossover(B, (float)0.1);
+					
+					reproducedElem++;													//mark this element as reproduced
+					tmpElem=0;															//reused just as a counter
+					for(Individual off : l) {											//copy returned list into the array of the offsprings
+						offsprings[reproducedElem-1-tmpElem] = off;
+						tmpElem++;
+					}
+					
+					crossoverFlag=false;												//mark crossover as happened
+					System.out.println("crossover end");
+					continue;															//go to next element
+				}
+																						//Pick gen. op according to generated number and probabilities
+				if (r<=genOpProbabilities[0]*100 && (individualsToUpdatePerIteration-reproducedElem)>1) { //crossover can be one if there are at least 2 elements to reproduce
+					System.out.println("crossover start");
+					crossoverFlag = true;												//flag that crossover is picked, setting up and ready to happen
+					tmpElem=i;															//store the ID of this individual
+					reproducedElem++;													//mark it as reproduced
+					continue;															//go to next element
+				} else {
+					System.out.println("mutation");
+					Individual A=null;
+					for (Individual ind : pop) {										//find the two individuals
+						//System.out.println("Looking for "+i+" and found "+ind.getId());
+						if (ind.getId()==i) {
+							A = ind;
+							//System.out.println("found A at "+i);
+							break;
+						}
+					}
+					reproducedElem++;
+					offsprings[reproducedElem-1]=A.mutate();
+				}
+			}
+					
 			//Hybridization step:
 			offsprings = this.hybridization(offsprings);
 			
