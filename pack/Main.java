@@ -50,6 +50,10 @@ public class Main {
 		
 		//Starting evolutionary process:
 		pop.evolve();
+		System.out.println("Terminating");
+		System.out.println("");
+		System.out.println("--------------------");
+		System.out.println("");
 	}
 
 }

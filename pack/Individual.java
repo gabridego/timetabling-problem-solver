@@ -269,6 +269,8 @@ public class Individual {
 	public Individual mutate() {
 		System.out.println("\nStarting exam mutation...");
 		Individual toModify = this.clone();
+		Individual toReturnIfError = this.clone();
+		toReturnIfError.individualId = newId();
 		//Random rng = new Random();
 		toModify.computePenaltyPerSlot();
 
@@ -277,13 +279,13 @@ public class Individual {
 
 		// Pick an acceptable exam for that timeslot in a random way (try to avoid local minima)
 		List<Integer> acceptables = new ArrayList<>(toModify.acceptableExamsPerTimeslot.get(slot));
-		if (acceptables.isEmpty()) return this; 	// no mutations could be performed
+		if (acceptables.isEmpty()) return toReturnIfError; 	// no mutations could be performed
 		Collections.shuffle(acceptables);
 		int exam = acceptables.get(rng.nextInt(acceptables.size()));
 
 		// Move the chosen exam in the new timeslot
 		toModify.moveExam(exam, slot);
-		toModify.individualId = individualCounter++;		// if a mutation happened the ID is different
+		toModify.individualId = newId();		// if a mutation happened the ID is different
 		return toModify;
 	}
 
@@ -486,11 +488,17 @@ public class Individual {
 			p1.xoverReinsertMissingExams(p1.timeslots.get(0));
 			p2.xoverReinsertMissingExams(p2.timeslots.get(0));
 			p1.timeslots.get(0).clear(); p2.timeslots.get(0).clear();
+			p1.individualId=newId();
+			p2.individualId=newId();
 			ret.add(p1); ret.add(p2);		// feasible solutions reached, this is what will be returned
 		}
 		catch (CrossoverInsertionFailedException e) {	// failed to get back to feasibility, return parents
-			ret.add(this);	// "this" is parent 1
-			ret.add(parent2);
+			Individual A = this.clone();
+			Individual B = parent2.clone();
+			A.individualId=newId();
+			B.individualId=newId();
+			ret.add(A);	// "this" is parent 1
+			ret.add(B);
 		}
 
 		return ret;
@@ -576,6 +584,10 @@ public class Individual {
 
 	public int getId() {
 		return individualId;
+	}
+	
+	public int newId() {
+		return individualCounter++;
 	}
 
 }

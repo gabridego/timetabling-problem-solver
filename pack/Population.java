@@ -71,6 +71,7 @@ public class Population {
 		System.out.println("New probabilities:");
 		System.out.println("	crossover: "+this.genOpProbabilities[0]);
 		System.out.println("	mutation: "+this.genOpProbabilities[1]);
+		System.out.println("");
 		
 		try {																										//TODO: remove this waiting block
 			Thread.sleep(250);
@@ -94,43 +95,54 @@ public class Population {
 		 * 0. Allocate a structure for storing fitness of each population element 					--> DONE: map
 		 * 1. Select individuals for reproduction 													--> DONE
 		 * 	1.1 Decide how many must reproduce 															--> DONE: percentage passed as Population argument
-		 * 	1.2 Find the ones with best fitness 														--> DONE: stream the map, sort it and limit it
+		 * 	1.2 Find the ones with best fitness 														--> W.I.P. TODO may randomize better
 		 * 2. Reproduction through some genetic operators											--> W.I.P.
 		 * 	2.1 Manage probabilistic aspect of genetic operator selection 								--> DONE: custom probability distribution system
 		 * 		(possibly with varying probabilities at runtime, this may exploit the time arg)
 		 *   2.1.1 Bigger use of crossover at beginning													--> DONE
 		 *   2.1.2 Mutation to diversify (Comparison of best fitness with average fitness)				--> DONE
-		 * 	2.2 Apply one of the three genetic operators: 												--> W.I.P.
+		 * 	2.2 Apply one of the three genetic operators: 												--> DONE
 		 * 		crossover (standard/order/partiallyMapped), mutation, inversion
-		 *  2.3 Decide whether to improve offsprings or not through local search 						--> W.I.P.
+		 *  2.3 Decide whether to improve offsprings or not through local search 						--> W.I.P. TODO implement local search
 		 *  	(hybridization --> memetic algorithm) 
-		 * 3. Population updating
-		 * 	3.1 select whether to use Population replacement or Steady state and with which parameters (elitist approach / % of pop subtituted) ( keep constant total population)
-		 * 	3.2 select weakest elements of the population to be substituted
-		 * 4. Save the result (write the file)
-		 * 	4.1 find new best solution in the population
-		 * 	4.2 write the file (pay attention to the format) with the new best solution
+		 * 3. Population updating																	--> W.I.P.
+		 * 	3.1 select whether to use Population replacement or Steady state and with which parameters 	--> DONE
+		 * 	(elitist approach / % of pop subtituted) ( keep constant total population)
+		 * 	3.2 select weakest elements of the population to be substituted								--> W.I.P.
+		 * 4. Save the result (write the file)														--> DONE
+		 * 	4.1 find new best solution in the population												--> DONE
+		 * 	4.2 write the file (pay attention to the format) with the new best solution					--> DONE
 		 */
-		//TODO: find a way to use the time argument --> suggestion: to affect probabilities of G.op 
 		
 		
 		System.out.println("");
 		System.out.println("--------------------");
 		System.out.println("Beginning evolution:");
 		
-		
-		// 0. Data structure allocation:
-		Map<Integer,Float> fitnessMap = new HashMap<>(); 	// build a map to store couples: individualId - fitness
-		for (Individual i : pop) {
-			fitnessMap.put(i.getId(), i.getFitness());
-		}
-		//System.out.println(fitnessMap);
 
-/*		
+		
 		int iteratCnt = 1;
 		Random rand = new Random();
 		while(iteratCnt>0 && (System.nanoTime()-start)<duration) {							//Endless loop - TODO: remove time constraint
 			System.out.println("Iteration: "+iteratCnt);
+			System.out.println("");
+			
+			// 0. Data structure allocation:
+			float avgFit1=(float) 0.0, bestFit1=(float) 0.0;
+			Map<Integer,Float> fitnessMap = new HashMap<>(); 								// build a map to store couples: individualId - fitness
+			for (Individual i : pop) {
+				fitnessMap.put(i.getId(), i.getFitness());
+				avgFit1 += i.getFitness();
+				if (i.getFitness()>bestFit1) {
+					bestFit1=i.getFitness();
+				}
+			}
+			avgFit1/=popSize;
+			System.out.println("Beginning statistics:");
+			System.out.println("	best fitness: "+bestFit1);
+			System.out.println("	average fitness: "+avgFit1);
+			System.out.println("");
+			//System.out.println(fitnessMap);
 			
 			
 			//1. Select individuals for reproduction
@@ -149,7 +161,7 @@ public class Population {
 				}
 				indexOfElemToBeRemoved--;
 			}																				//strongestFitnessMap now contains the (randomized) individuals to reproduce
-			
+			//System.out.println(strongestFitnessMap);
 			
 			//2. Reproduction
 			this.adjustProbabilities();													//Rebalance probabilities according to elapsed time
@@ -160,6 +172,7 @@ public class Population {
 			boolean crossoverFlag = false;												//crossover takes two elements --> this is needed to skip an element
 			int tmpElem = -1;															//to store temporarily an element before crossover
 			
+			System.out.println("Reproducing by: ");
 			for (int i : strongestFitnessMap.keySet()){									//loop on the IDs of the individuals to reproduce
 				//System.out.println("CURRENT POPULATION: ");
 				//for (Individual k : pop) {
@@ -190,18 +203,18 @@ public class Population {
 					}
 					
 					crossoverFlag=false;												//mark crossover as happened
-					System.out.println("crossover end");
+					System.out.println("	crossover (end)");
 					continue;															//go to next element
 				}
 																						//Pick gen. op according to generated number and probabilities
 				if (r<=genOpProbabilities[0]*100 && (individualsToUpdatePerIteration-reproducedElem)>1) { //crossover can be one if there are at least 2 elements to reproduce
-					System.out.println("crossover start");
+					System.out.println("	crossover (start)");
 					crossoverFlag = true;												//flag that crossover is picked, setting up and ready to happen
 					tmpElem=i;															//store the ID of this individual
 					reproducedElem++;													//mark it as reproduced
 					continue;															//go to next element
 				} else {
-					System.out.println("mutation");
+					System.out.println("	mutation");
 					Individual A=null;
 					for (Individual ind : pop) {										//find the two individuals
 						//System.out.println("Looking for "+i+" and found "+ind.getId());
@@ -229,10 +242,37 @@ public class Population {
 				    		   Map.Entry::getKey, Map.Entry::getValue, (e1,e2) -> e1, LinkedHashMap::new));
 			//System.out.println(weakestFitnessMap);
 			//TODO: add elitist approach to use in case individualsToUpdatePerIteration = popSize
+
+			int substituted = 0;																		//count how many inserted
+			for (int i : weakestFitnessMap.keySet()) {													//loop on the IDs of elements to substitute (to remove)
+				int counter = 0;																		//count how many checked
+				for (Individual ind : pop) {															//look for the individuals to remove
+					if(ind.getId()==i) {																//if the current one has to be removed
+						pop[counter]=offsprings[substituted];											//remove it and substitute it with an offspring
+						substituted++;
+						break;
+					}	
+					counter++;
+				}
+			}
+
 			
-*/			
+			float avgFit2=(float) 0.0, bestFit2=(float) 0.0;
+			for (Individual i : pop) {
+				avgFit2 += i.getFitness();
+				if (i.getFitness()>bestFit2) {
+					bestFit2=i.getFitness();
+				}
+			}
+			avgFit2/=popSize;
+			System.out.println("Ending statistics:");
+			System.out.println("	best fitness improvement: "+(bestFit2-bestFit1));
+			System.out.println("	average fitness improvement: "+(avgFit2-avgFit1));
+			System.out.println("");
+			
+			
 			//4. Save results
-			int keyOfBestSol = fitnessMap.entrySet().stream().min((entry1, entry2) -> entry1.getValue() > entry2.getValue() ? 1 : -1).get().getKey();	//Find optimal solution
+			int keyOfBestSol = fitnessMap.entrySet().stream().max((entry1, entry2) -> entry1.getValue() > entry2.getValue() ? 1 : -1).get().getKey();	//Find optimal solution
 
 			for (Individual ind : pop) {
 				if (ind.getId()==keyOfBestSol) {
@@ -246,13 +286,13 @@ public class Population {
 					break;
 				}
 			}
-/*			
+			
 			iteratCnt++;
 			System.out.println("");
 			System.out.println("--------------------");
 			System.out.println("");
 		}
 		
-*/		
+	
 	}
 }
