@@ -177,12 +177,12 @@ public class Individual {
 				possible = new HashMap<>();
 				numPossible = new TreeMap<>();
 				numPossible.put(instance.getNumberOfSlots() - 1, new ArrayList<>());
+				for(Set<Integer> ts : timeslots)
+					ts.clear();
 				for(int i = 1; i <= instance.getMaxExam(); i++) {
 					possible.put(i, new ArrayList<>(Arrays.asList(slots)));
 					numPossible.get(instance.getNumberOfSlots() - 1).add(i);
 				}
-				for (Set<Integer> ts : timeslots)
-					ts.clear();
 				continue;
 			}
 			slot = possible.get(exam).get(rng.nextInt(possible.get(exam).size()));	//get one of possible timeslots
@@ -280,6 +280,7 @@ public class Individual {
 		int slot = randomSlotByProbability(toModify.penaltyPerSlot);
 
 		// Pick an acceptable exam for that timeslot in a random way (try to avoid local minima)
+		//this.acceptableExamsPerTimeslot = computeAcceptabilitiesPerTimeslot();
 		List<Integer> acceptables = new ArrayList<>(toModify.acceptableExamsPerTimeslot.get(slot));
 		if (acceptables.isEmpty()) return toReturnIfError; 	// no mutations could be performed
 		Collections.shuffle(acceptables);
@@ -370,7 +371,7 @@ public class Individual {
 		//Random rng = new Random();
 		System.out.println("\nStarting slot destruction...");
 		this.computePenaltyPerSlot();
-		int slot=0, minp, newSlot = 0;
+		int slot = 0, minp, newSlot = 0;
 		List<Integer> possibleSlots = new ArrayList<>();
 		slot = randomSlotByProbability(penaltyPerSlot);
 
@@ -426,32 +427,32 @@ public class Individual {
 	public Individual clone() {
 		return new Individual(this);
 	}
-
-	// debug function to test integrity
-	public boolean testIntegrity() {
-		if (instance.getNumberOfExams() != assignment.keySet().size())	// right # exams?
-			return false;
-		for (Integer exam : assignment.keySet()) {	// is each exam in its timeslot? 
-			Integer ts = assignment.get(exam);
-			if (!timeslots.get(ts).contains(exam)) {
-				System.out.println("Timeslot " + ts + " should contain exam " + exam);
-				return false;
-			}
-		}
-		for (int slot = 1; slot<timeslots.size(); slot++)	// are there extra exams in the timeslot?
-			for (Integer exam : timeslots.get(slot)) {
-				if (assignment.get(exam) != slot) {
-					System.out.println("Exam " + exam + " is somehow in timeslot ("+ slot + ") but should be in (" + assignment.get(exam));
-					return false;
-				}
-			}
-		this.acceptableExamsPerTimeslot = this.computeAcceptabilitiesPerTimeslot();
-		List<Integer> counts = new ArrayList<Integer>();
-		acceptableExamsPerTimeslot.stream().map(set -> set.size()).forEach(i -> counts.add(i));
-		System.out.println("# acceptables: " + counts);
-		return true;
-	}
 	
+	// debug function to test integrity	
+	public boolean testIntegrity() {	
+		if (instance.getNumberOfExams() != assignment.keySet().size())	// right # exams?	
+			return false;	
+		for (Integer exam : assignment.keySet()) {	// is each exam in its timeslot? 	
+			Integer ts = assignment.get(exam);	
+			if (!timeslots.get(ts).contains(exam)) {	
+				System.out.println("Timeslot " + ts + " should contain exam " + exam);	
+				return false;	
+			}	
+		}	
+		for (int slot = 1; slot<timeslots.size(); slot++)	// are there extra exams in the timeslot?	
+			for (Integer exam : timeslots.get(slot)) {	
+				if (assignment.get(exam) != slot) {	
+					System.out.println("Exam " + exam + " is somehow in timeslot ("+ slot + ") but should be in (" + assignment.get(exam));	
+					return false;	
+				}	
+			}	
+		this.acceptableExamsPerTimeslot = this.computeAcceptabilitiesPerTimeslot();	
+		List<Integer> counts = new ArrayList<Integer>();	
+		acceptableExamsPerTimeslot.stream().map(set -> set.size()).forEach(i -> counts.add(i));	
+		System.out.println("# acceptables: " + counts);	
+		return true;	
+	}
+
 	// Extract the chosen timeslots from the individual and return them (used in crossover). Place all the removed ones in timeslot 0.
 	private Map<Integer, Set<Integer>> xoverExtract(Set<Integer> electedSlots) {
 		Map<Integer, Set<Integer>> ret = new HashMap<>();
@@ -503,7 +504,7 @@ public class Individual {
 		while (electedSlots.size() < nSlots)
 			electedSlots.add(randomSlotByProbability(this.penaltyPerSlot));
 		System.out.println("\nStarting crossover on slots " + electedSlots + "...");
-		if (!testIntegrity())
+		if (!testIntegrity())	
 			System.out.println("INTEGRITY ERROR BEFORE CROSSOVER!");
 
 		// Extract the chosen timeslots, also marking all the removing as exams as 'missing' (i.e. assigned to -1)
@@ -537,7 +538,7 @@ public class Individual {
 	// Throws an exception if at least an exam can't be placed anywhere
 	private void xoverReinsertMissingExams(Set<Integer> missingExams) throws CrossoverInsertionFailedException{
 		Map<Integer, List<Integer>> possible = new HashMap<>(), numPossible = new TreeMap<>();
-		this.computeAcceptabilitiesPerTimeslot();
+		this.acceptableExamsPerTimeslot = this.computeAcceptabilitiesPerTimeslot();
 		System.out.println("Try to place exams " + missingExams + "...");
 		
 		for(int exam : missingExams)
@@ -552,10 +553,10 @@ public class Individual {
 			size = possible.get(exam).size();
 			if(size <= 0) {
 				System.out.println("No possible slot for exam " + exam + ", exit!");
-				nfails ++;
-				continue;
-			}
-			if (nfails > 0)	{
+				nfails ++;	
+				continue;	
+			}	
+			if (nfails > 0)	{	
 				System.out.println("Total not placeable exams: " + nfails);
 				throw new CrossoverInsertionFailedException();
 			}
@@ -564,7 +565,7 @@ public class Individual {
 			numPossible.get(size).add(exam);
 		}
 		
-		int exam, first, slot;
+		Integer exam, first, slot;
 		Integer[] conflicts;
 		while(!possible.isEmpty()) {
 			first = numPossible.keySet().iterator().next();
@@ -577,6 +578,8 @@ public class Individual {
 			slot = possible.get(exam).get(rng.nextInt(possible.get(exam).size()));	//get one of possible timeslots
 			this.assignment.put(exam, slot);
 			this.timeslots.get(slot).add(exam);
+			this.updateAcceptabilities(exam, 0, slot, instance.getConflictMatrix());
+			System.out.println("Exam " + exam + " placed in slot " + slot);
 			possible.remove(exam);		//exam is assigned, is removed
 
 			for(int i = 1; i < conflicts.length; i++) {		//update possible slots based on conflicts
@@ -622,6 +625,10 @@ public class Individual {
 	
 	public int newId() {
 		return individualCounter++;
+	}
+
+	public boolean isFeasible() {
+		return this.checkFeasibility(assignment, instance.getConflictMatrix());
 	}
 
 }

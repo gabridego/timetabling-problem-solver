@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class Population {
 	private Integer popSize;
@@ -45,7 +44,11 @@ public class Population {
 		pop = new Individual[popSize];
 		for(int i = 0; i < popSize; i++) {
 			pop[i] = new Individual(instance);
-			System.out.println(1/pop[i].getFitness());
+			System.out.println(i + ": " + pop[i].getAssignment());
+			System.out.println(i + ": " + 1/pop[i].getFitness());
+			if(!pop[i].isFeasible()) {
+				System.out.println("Non feasible individual " + i);
+			}
 		}
 	}
 
@@ -193,7 +196,7 @@ public class Population {
 						}
 					}
 					
-					List<Individual> l = A.crossover(B, (float)0.1);
+					List<Individual> l = A.crossover(B, (float)(rand.nextInt(10) + 1)/10);
 					
 					reproducedElem++;													//mark this element as reproduced
 					tmpElem=0;															//reused just as a counter
@@ -224,8 +227,24 @@ public class Population {
 							break;
 						}
 					}
+					int m = rand.nextInt(3);
+					switch (m) {
+					case 0:
+						offsprings[reproducedElem]=A.mutate();
+						break;
+					case 1:
+						offsprings[reproducedElem]=A.swapSlots();
+						break;
+					case 2:
+						offsprings[reproducedElem]=A.desrupt();
+						break;
+					}
+					if(!offsprings[reproducedElem].isFeasible()) {
+						System.out.println("Warning: non feasible solution!");
+						System.out.print(offsprings[reproducedElem-1].getAssignment());
+						return;
+					}
 					reproducedElem++;
-					offsprings[reproducedElem-1]=A.mutate();
 				}
 			}
 					
@@ -277,6 +296,7 @@ public class Population {
 			for (Individual ind : pop) {
 				if (ind.getId()==keyOfBestSol) {
 					try {
+						System.out.println("Lowest penalty: " + 1/ind.getFitness());
 						System.out.println("Printing results to: "+this.outputFile);
 						ind.printIndividual(this.outputFile);																							//print it
 					} catch (IOException e) {
