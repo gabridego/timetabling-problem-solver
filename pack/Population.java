@@ -1,5 +1,6 @@
 package pack;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -16,14 +17,16 @@ public class Population {
 	private long start;
 	private long duration;
 	private float[] genOpProbabilities;
+	private String outputFile;
 	
 	//Arbitrary parameters (NOT BAD at 0.9 0.1 0.7)
 	final private float crossover = (float) 0.9;
 	final private float mutation = (float) 0.1;
 	final private float maxMovingProbability = (float) 0.7;
 	
-	public Population(Integer popSize, Instance instance, float percentage, long start, long duration) {
+	public Population(Integer popSize, Instance instance, float percentage, long start, long duration, String outputFile) {
 		this.popSize = popSize;
+		this.outputFile = outputFile+"_DMOgroup07.sol";
 		
 		this.individualsToUpdatePerIteration=(int) (this.popSize*(percentage/100));
 		if (this.individualsToUpdatePerIteration<1) {
@@ -123,7 +126,7 @@ public class Population {
 		}
 		//System.out.println(fitnessMap);
 
-		
+/*		
 		int iteratCnt = 1;
 		Random rand = new Random();
 		while(iteratCnt>0 && (System.nanoTime()-start)<duration) {							//Endless loop - TODO: remove time constraint
@@ -227,15 +230,29 @@ public class Population {
 			//System.out.println(weakestFitnessMap);
 			//TODO: add elitist approach to use in case individualsToUpdatePerIteration = popSize
 			
-			
+*/			
 			//4. Save results
-			
+			int keyOfBestSol = fitnessMap.entrySet().stream().min((entry1, entry2) -> entry1.getValue() > entry2.getValue() ? 1 : -1).get().getKey();	//Find optimal solution
+
+			for (Individual ind : pop) {
+				if (ind.getId()==keyOfBestSol) {
+					try {
+						System.out.println("Printing results to: "+this.outputFile);
+						ind.printIndividual(this.outputFile);																							//print it
+					} catch (IOException e) {
+						System.out.println("FAILED PRINTING RESULTS! R.I.P.");
+						e.printStackTrace();
+					}
+					break;
+				}
+			}
+/*			
 			iteratCnt++;
 			System.out.println("");
 			System.out.println("--------------------");
 			System.out.println("");
 		}
 		
-		
+*/		
 	}
 }
