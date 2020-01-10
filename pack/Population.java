@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -91,6 +92,53 @@ public class Population {
 		return hybridizedOffsprings;
 	}
 	
+	private int getSum(Map<Integer, Float> m) {
+		float sum = m.values().stream().reduce((float)0, (a, b) -> a+b);
+		return (int)(sum*1000);
+	}
+	
+	public List<Integer> selectNbyFitness(Map<Integer, Float> m, int n) {
+		
+		Map<Integer, Float> copy = new HashMap<>();							//create a copy that can be modified
+		for (Map.Entry<Integer,Float> entry : m.entrySet()) {
+			copy.put(entry.getKey(), entry.getValue());
+		}
+		
+		Map<Integer, Float> orderedCopy =									//sorted version (descending value) --> give precedence to highest fitness ones
+			    copy.entrySet().stream()											
+			       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+			       .collect(Collectors.toMap(
+			    		   Map.Entry::getKey, Map.Entry::getValue, (e1,e2) -> e1, LinkedHashMap::new));
+		
+		List<Integer> res = new LinkedList<Integer>();						//result list with all selected elements
+		Random generator = new Random();									//random number generator
+		
+		for(int i = 0; i<n; i++) {											//do the following N times:
+			int incremental = 0;											//accumulator for finding the key
+			int random = generator.nextInt(getSum(orderedCopy));			//get an int in range [0, sumOfFitnesses*1000-1]
+			/*
+			System.out.println("");
+			System.out.println(getSum(orderedCopy));
+			System.out.println(random);
+			*/
+			for(Map.Entry<Integer, Float> e : orderedCopy.entrySet()) {		//loop on the ordered entries
+				incremental+=(int)(e.getValue()*1000);						//increase by value until reach random number
+				if(incremental>random) {									//when found
+					res.add(e.getKey());									//add element to result list
+					orderedCopy.remove(e.getKey());							//remove element from map to avoid repetitions
+					break;
+				}
+			}
+		}
+		/*
+		System.out.println("");
+		System.out.println(copy);
+		System.out.println(orderedCopy);
+		System.out.println(res);
+		*/
+		return res;
+	}
+	
 	public void evolve() {
 		//Method to be called on the Population object to start the evolutionary process after initialization
 		/*
@@ -149,6 +197,7 @@ public class Population {
 			
 			
 			//1. Select individuals for reproduction
+			//List<Integer> parents = selectNbyFitness(fitnessMap, individualsToUpdatePerIteration);
 			Map<Integer, Float> strongestFitnessMap =										//Map with the elements to reproduce (plus one)
 				    fitnessMap.entrySet().stream()											//i.e. if want to reproduce 2 elements --> map has 3
 				       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))		//and one of them will be removed randomly
