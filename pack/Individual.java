@@ -266,23 +266,23 @@ public class Individual {
 
 	// Move a randomly chosen exam to another timeslot, maintaining feasibility.
 	public Individual mutate() {
-		Individual original = this.clone();
+		Individual toModify = this.clone();
 		//Random rng = new Random();
 		computePenaltyPerSlot();
 
 		// Pick a timeslot in a probabilistic manner based on penalty
-		int slot = randomSlotByProbability(this.penaltyPerSlot);
+		int slot = randomSlotByProbability(toModify.penaltyPerSlot);
 
 		// Pick an acceptable exam for that timeslot in a random way (try to avoid local minima)
-		List<Integer> acceptables = new ArrayList<>(acceptableExamsPerTimeslot.get(slot));
-		if (acceptables.isEmpty()) return original; 	// no mutations could be performed
+		List<Integer> acceptables = new ArrayList<>(toModify.acceptableExamsPerTimeslot.get(slot));
+		if (acceptables.isEmpty()) return this; 	// no mutations could be performed
 		Collections.shuffle(acceptables);
 		int exam = acceptables.get(rng.nextInt(acceptables.size()));
 
 		// Move the chosen exam in the new timeslot
-		moveExam(exam, slot);
-		this.individualId = individualCounter++;		// if a mutation happened the ID is different
-		return this;
+		toModify.moveExam(exam, slot);
+		toModify.individualId = individualCounter++;		// if a mutation happened the ID is different
+		return toModify;
 	}
 
 	// Compute penalty caused by each slot
