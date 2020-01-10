@@ -270,7 +270,7 @@ public class Individual {
 		System.out.println("\nStarting exam mutation...");
 		Individual toModify = this.clone();
 		//Random rng = new Random();
-		computePenaltyPerSlot();
+		toModify.computePenaltyPerSlot();
 
 		// Pick a timeslot in a probabilistic manner based on penalty
 		int slot = randomSlotByProbability(toModify.penaltyPerSlot);
