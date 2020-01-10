@@ -181,6 +181,8 @@ public class Individual {
 					possible.put(i, new ArrayList<>(Arrays.asList(slots)));
 					numPossible.get(instance.getNumberOfSlots() - 1).add(i);
 				}
+				for (Set<Integer> ts : timeslots)
+					ts.clear();
 				continue;
 			}
 			slot = possible.get(exam).get(rng.nextInt(possible.get(exam).size()));	//get one of possible timeslots
@@ -425,6 +427,31 @@ public class Individual {
 		return new Individual(this);
 	}
 
+	// debug function to test integrity
+	public boolean testIntegrity() {
+		if (instance.getNumberOfExams() != assignment.keySet().size())	// right # exams?
+			return false;
+		for (Integer exam : assignment.keySet()) {	// is each exam in its timeslot? 
+			Integer ts = assignment.get(exam);
+			if (!timeslots.get(ts).contains(exam)) {
+				System.out.println("Timeslot " + ts + " should contain exam " + exam);
+				return false;
+			}
+		}
+		for (int slot = 1; slot<timeslots.size(); slot++)	// are there extra exams in the timeslot?
+			for (Integer exam : timeslots.get(slot)) {
+				if (assignment.get(exam) != slot) {
+					System.out.println("Exam " + exam + " is somehow in timeslot ("+ slot + ") but should be in (" + assignment.get(exam));
+					return false;
+				}
+			}
+		this.acceptableExamsPerTimeslot = this.computeAcceptabilitiesPerTimeslot();
+		List<Integer> counts = new ArrayList<Integer>();
+		acceptableExamsPerTimeslot.stream().map(set -> set.size()).forEach(i -> counts.add(i));
+		System.out.println("# acceptables: " + counts);
+		return true;
+	}
+	
 	// Extract the chosen timeslots from the individual and return them (used in crossover). Place all the removed ones in timeslot 0.
 	private Map<Integer, Set<Integer>> xoverExtract(Set<Integer> electedSlots) {
 		Map<Integer, Set<Integer>> ret = new HashMap<>();
@@ -476,6 +503,8 @@ public class Individual {
 		while (electedSlots.size() < nSlots)
 			electedSlots.add(randomSlotByProbability(this.penaltyPerSlot));
 		System.out.println("\nStarting crossover on slots " + electedSlots + "...");
+		if (!testIntegrity())
+			System.out.println("INTEGRITY ERROR BEFORE CROSSOVER!");
 
 		// Extract the chosen timeslots, also marking all the removing as exams as 'missing' (i.e. assigned to -1)
 		Map<Integer, Set<Integer>> extracted1 = p1.xoverExtract(electedSlots), extracted2 = p2.xoverExtract(electedSlots);
@@ -518,11 +547,16 @@ public class Individual {
 				if(this.acceptableExamsPerTimeslot.get(slot).contains(exam))
 					possible.get(exam).add(slot);
 				
-		int size;
+		int size, nfails = 0;
 		for(int exam : missingExams) {		//inizialization, maps a slot to the number of slot that can be placed there
 			size = possible.get(exam).size();
 			if(size <= 0) {
 				System.out.println("No possible slot for exam " + exam + ", exit!");
+				nfails ++;
+				continue;
+			}
+			if (nfails > 0)	{
+				System.out.println("Total not placeable exams: " + nfails);
 				throw new CrossoverInsertionFailedException();
 			}
 			if(!numPossible.containsKey(size))
