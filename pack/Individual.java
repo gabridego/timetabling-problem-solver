@@ -118,7 +118,7 @@ public class Individual {
 
 	// Generation of an individual, greedy
 	public Individual(Instance instance) {
-		this.individualId = individualCounter++;
+		this.individualId = this.newId();
 		// METHOD 1: 	exams ordered for total number of conflicting students, for each exam randomly select a slot and if there is no conflict it
 		// 				is assigned. if conflict, randomly try with the other slots, if no one is ok restart from the beginning.
 		// Random r = new Random(SEED);
@@ -344,6 +344,7 @@ public class Individual {
 
 		if(slot1 == slot2)  {
 			System.out.println("Slot " + slot1 + " extracted two times, exit");
+			this.individualId = this.newId();
 			return this;
 		}
 
@@ -351,11 +352,11 @@ public class Individual {
 		//Integer[][] matrix = instance.getConflictMatrix();
 		//update assignments, fitness and acceptabilities
 		for(int exam : this.timeslots.get(slot1)) {
-			this.assignment.put(exam, slot2);
+			this.assignment.replace(exam, slot2);
 			//updateFitness(exam, slot1, slot2, matrix);
 		}
 		for(int exam : this.timeslots.get(slot2)) {
-			this.assignment.put(exam, slot1);
+			this.assignment.replace(exam, slot1);
 			//updateFitness(exam, slot2, slot1, matrix);
 		}
 		Collections.swap(this.timeslots, slot1, slot2);
@@ -363,7 +364,7 @@ public class Individual {
 		System.out.println("Done!");
 		this.fitness = 1 / computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());	//inverse objective function
 		this.acceptableExamsPerTimeslot = computeAcceptabilitiesPerTimeslot();
-		this.individualId = individualCounter++;
+		this.individualId = this.newId();
 		return this;
 	}
 
@@ -402,7 +403,7 @@ public class Individual {
 			this.updateAcceptabilities(exam, slot, newSlot, instance.getConflictMatrix());
 		}
 		System.out.println("Done!");
-		this.individualId = individualCounter++;
+		this.individualId = this.newId();
 		return this;
 	}
 

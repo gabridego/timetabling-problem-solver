@@ -192,6 +192,7 @@ public class Population {
 
 		
 		int iteratCnt = 1;
+		float bestFit = -1;
 		Random rand = new Random();
 		while(iteratCnt>0 && (System.nanoTime()-start)<duration) {							//Endless loop - TODO: remove time constraint
 			System.out.println("Iteration: "+iteratCnt);
@@ -347,13 +348,16 @@ public class Population {
 
 			for (Individual ind : pop) {
 				if (ind.getId()==keyOfBestSol) {
-					try {
-						System.out.println("Lowest penalty: " + 1/ind.getFitness());
-						System.out.println("Printing results to: "+this.outputFile);
-						ind.printIndividual(this.outputFile);																							//print it
-					} catch (IOException e) {
-						System.out.println("FAILED PRINTING RESULTS! R.I.P.");
-						e.printStackTrace();
+					if(ind.getFitness() > bestFit) {
+						try {
+							System.out.println("Lowest penalty: " + 1/ind.getFitness());
+							System.out.println("Printing results to: "+this.outputFile);
+							ind.printIndividual(this.outputFile);																							//print it
+						} catch (IOException e) {
+							System.out.println("FAILED PRINTING RESULTS! R.I.P.");
+							e.printStackTrace();
+						}
+						bestFit = ind.getFitness();
 					}
 					break;
 				}
