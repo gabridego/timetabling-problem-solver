@@ -652,8 +652,13 @@ public class Individual {
 		return assignment;
 	}
 
-	public float getFitness() {
-		return fitness;
+	public float getPenalty() {
+		return ((float) 1)/fitness;
+	}
+	
+	public float getFitness(float worstPenalty) {
+		float thisPenalty = 1/fitness;
+		return (float) Math.pow(2, (worstPenalty - thisPenalty)/(0.0025*worstPenalty) );
 	}
 
 	public List<Set<Integer>> getTimeslots() {

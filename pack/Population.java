@@ -1,12 +1,14 @@
 package pack;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -46,7 +48,7 @@ public class Population {
 		for(int i = 0; i < popSize; i++) {
 			pop[i] = new Individual(instance);
 			System.out.println(i + ": " + pop[i].getAssignment());
-			System.out.println(i + ": " + 1/pop[i].getFitness());
+			System.out.println(i + ": " + pop[i].getPenalty());
 			if(!pop[i].isFeasible()) {
 				System.out.println("Non feasible individual " + i);
 			}
@@ -199,19 +201,22 @@ public class Population {
 			System.out.println("");
 			
 			// 0. Data structure allocation:
-			float avgFit1=(float) 0.0, bestFit1=(float) 0.0;
+			float avgFit1=(float) 0.0, bestFit1=(float) 0.0, bestPenalty1 = (float) 0.0;
 			Map<Integer,Float> fitnessMap = new HashMap<>(); 								// build a map to store couples: individualId - fitness
+			OptionalDouble worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
+			float worstPenalty = (float) worstOptional.getAsDouble();
 			for (Individual i : pop) {
-				fitnessMap.put(i.getId(), i.getFitness());
-				avgFit1 += i.getFitness();
-				if (i.getFitness()>bestFit1) {
-					bestFit1=i.getFitness();
+				fitnessMap.put(i.getId(), i.getFitness(worstPenalty));
+				avgFit1 += i.getFitness(worstPenalty);
+				if (i.getFitness(worstPenalty)>bestFit1) {
+					bestFit1=i.getFitness(worstPenalty);
+					bestPenalty1 = i.getPenalty();
 				}
 			}
 			avgFit1/=popSize;
 			System.out.println("Beginning statistics:");
 			System.out.println("	best fitness: "+bestFit1);
-			System.out.println("        lowest penalty: "+1/bestFit1);
+			System.out.println("        lowest penalty: "+bestPenalty1);
 			System.out.println("	average fitness: "+avgFit1);
 			System.out.println("");
 			//System.out.println(fitnessMap);
@@ -332,9 +337,9 @@ public class Population {
 			
 			float avgFit2=(float) 0.0, bestFit2=(float) 0.0;
 			for (Individual i : pop) {
-				avgFit2 += i.getFitness();
-				if (i.getFitness()>bestFit2) {
-					bestFit2=i.getFitness();
+				avgFit2 += i.getFitness(worstPenalty);
+				if (i.getFitness(worstPenalty)>bestFit2) {
+					bestFit2=i.getFitness(worstPenalty);
 				}
 			}
 			avgFit2/=popSize;
@@ -349,16 +354,16 @@ public class Population {
 
 			for (Individual ind : pop) {
 				if (ind.getId()==keyOfBestSol) {
-					if(ind.getFitness() > bestFit) {
+					if(ind.getFitness(worstPenalty) > bestFit) {
 						try {
-							System.out.println("Lowest penalty: " + 1/ind.getFitness());
+							System.out.println("Lowest penalty: " + ind.getPenalty());
 							System.out.println("Printing results to: "+this.outputFile);
 							ind.printIndividual(this.outputFile);																							//print it
 						} catch (IOException e) {
 							System.out.println("FAILED PRINTING RESULTS! R.I.P.");
 							e.printStackTrace();
 						}
-						bestFit = ind.getFitness();
+						bestFit = ind.getFitness(worstPenalty);
 					}
 					break;
 				}
