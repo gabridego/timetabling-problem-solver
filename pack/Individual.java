@@ -17,7 +17,8 @@ import java.util.TreeMap;
 public class Individual {
 	//private static final int MAX_ITER = 12;
 	//private static final int SEED = 42;
-
+	private static final int MAX_CROSSOVER_TRIES = 3;
+	
 	private Random rng = new Random();
 	
 	private Instance instance;
@@ -494,43 +495,91 @@ public class Individual {
 	 */
 	public List<Individual> crossover(Individual parent2, float percentage){
 		List<Individual> ret = new ArrayList<>();
-		Individual p1 = this.clone(), p2=parent2.clone();	// p1 and p2 will be modified
+		Individual p1, p2;	// p1 and p2 will be modified
 		computePenaltyPerSlot();
 
-		// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
+		Set<Integer> tabuSlots = new HashSet<>();
+		int nIterations = 0, slot;
 		int nSlots = (int)(percentage * instance.getNumberOfSlots());
 		nSlots = (nSlots < 1? 1 : nSlots);
-		Set<Integer> electedSlots = new HashSet<>();
-		while (electedSlots.size() < nSlots)
-			electedSlots.add(randomSlotByProbability(this.penaltyPerSlot));
-		System.out.println("\nStarting crossover on slots " + electedSlots + "...");
-		if (!testIntegrity())	
-			System.out.println("INTEGRITY ERROR BEFORE CROSSOVER!");
+		
+		while (nIterations < MAX_CROSSOVER_TRIES && instance.getNumberOfSlots()-tabuSlots.size() > nSlots) {
+			// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
+			Set<Integer> electedSlots = new HashSet<>();
+			while (electedSlots.size() < nSlots) {
+				slot = randomSlotByProbability(this.penaltyPerSlot);
+				if (!tabuSlots.contains(slot))
+					electedSlots.add(slot);
+			}	
+			System.out.println("\nStarting crossover on slots " + electedSlots + "...");
+			if (!testIntegrity())	
+				System.out.println("INTEGRITY ERROR BEFORE CROSSOVER!");
 
-		// Extract the chosen timeslots, also marking all the removing as exams as 'missing' (i.e. assigned to -1)
-		Map<Integer, Set<Integer>> extracted1 = p1.xoverExtract(electedSlots), extracted2 = p2.xoverExtract(electedSlots);
-		// Prepare assignment and timeslots so that no duplicates will be formed by inserting the new assignments
-		p1.xoverDuplicates(extracted2); p2.xoverDuplicates(extracted1);
-		// Insert the timeslots coming from the other solution
-		p1.xoverInsertOtherTimeslots(extracted2); p2.xoverInsertOtherTimeslots(extracted1);
-		// Reinsert missing elements, throwing an exception in case it fails
-		try {
-			p1.xoverReinsertMissingExams(p1.timeslots.get(0));
-			p2.xoverReinsertMissingExams(p2.timeslots.get(0));
-			p1.timeslots.get(0).clear(); p2.timeslots.get(0).clear();
-			p1.individualId=newId();
-			p2.individualId=newId();
-			ret.add(p1); ret.add(p2);		// feasible solutions reached, this is what will be returned
+			p1 = this.clone(); p2 = parent2.clone();
+			
+			// Extract the chosen timeslots, also marking all the removing as exams as 'missing' (i.e. assigned to -1)
+			Map<Integer, Set<Integer>> extracted1 = p1.xoverExtract(electedSlots), extracted2 = p2.xoverExtract(electedSlots);
+			// Prepare assignment and timeslots so that no duplicates will be formed by inserting the new assignments
+			p1.xoverDuplicates(extracted2); p2.xoverDuplicates(extracted1);
+			// Insert the timeslots coming from the other solution
+			p1.xoverInsertOtherTimeslots(extracted2); p2.xoverInsertOtherTimeslots(extracted1);
+			// Try reinserting missing elements from p1. If it fails, the timeslot it came for is difficult to change
+			try {
+				p1.xoverReinsertMissingExams(p1.timeslots.get(0));
+				p1.timeslots.get(0).clear();
+				p1.individualId=newId();
+				p1.fitness = 1 / p1.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
+			}
+			catch (CrossoverInsertionFailedException e) {
+				int banned = this.assignment.get(e.getFailedReinsertedExam());
+				tabuSlots.add(banned);
+				nSlots = (nSlots-1 < 1? 1 : nSlots-1);
+				nIterations++;
+				continue;
+			}
+			// Try reinserting missing elements from p2. If it fails, the timeslot it came for is difficult to change
+			try {
+				p2.xoverReinsertMissingExams(p2.timeslots.get(0));
+				p2.timeslots.get(0).clear();
+				p2.individualId=newId();
+				p2.fitness = 1 / p2.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
+			}
+			catch (CrossoverInsertionFailedException e) {
+				int banned = parent2.assignment.get(e.getFailedReinsertedExam());
+				tabuSlots.add(banned);
+				nSlots = (nSlots-1 < 1? 1 : nSlots-1);
+				nIterations++;
+				continue;
+			}
+			/*try {
+				p1.xoverReinsertMissingExams(p1.timeslots.get(0));
+				p2.xoverReinsertMissingExams(p2.timeslots.get(0));
+				p1.timeslots.get(0).clear(); p2.timeslots.get(0).clear();
+				p1.individualId=newId();
+				p2.individualId=newId();
+				p1.fitness = 1 / p1.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
+				p2.fitness = 1 / p2.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
+				ret.add(p1); ret.add(p2);		// feasible solutions reached, this is what will be returned
+			}
+			catch (CrossoverInsertionFailedException e) {	// failed to get back to feasibility, return parents
+				Individual A = this.clone();
+				Individual B = parent2.clone();
+				A.individualId=newId();
+				B.individualId=newId();
+				ret.add(A);	// "this" is parent 1
+				ret.add(B);
+			}*/
+			// I am here if everything else above succeeded, so I have two feasible children.
+			ret.add(p1); ret.add(p2);
+			return ret;
 		}
-		catch (CrossoverInsertionFailedException e) {	// failed to get back to feasibility, return parents
-			Individual A = this.clone();
-			Individual B = parent2.clone();
-			A.individualId=newId();
-			B.individualId=newId();
-			ret.add(A);	// "this" is parent 1
-			ret.add(B);
-		}
-
+		// I am here if something went wrong, so I return copies of the parents
+		Individual A = this.clone();
+		Individual B = parent2.clone();
+		A.individualId=newId();
+		B.individualId=newId();
+		ret.add(A);	// "this" is parent 1
+		ret.add(B);
 		return ret;
 	}
 
@@ -558,7 +607,7 @@ public class Individual {
 			}	
 			if (nfails > 0)	{	
 				System.out.println("Total not placeable exams: " + nfails);
-				throw new CrossoverInsertionFailedException();
+				throw new CrossoverInsertionFailedException(exam);
 			}
 			if(!numPossible.containsKey(size))
 				numPossible.put(size, new ArrayList<>());
@@ -573,7 +622,7 @@ public class Individual {
 			conflicts = instance.getConflictMatrix()[exam];
 			if(possible.get(exam).size() <= 0) {
 				System.out.println("No possible slot for exam " + exam + ", exit!");
-				throw new CrossoverInsertionFailedException();
+				throw new CrossoverInsertionFailedException(exam);
 			}
 			slot = possible.get(exam).get(rng.nextInt(possible.get(exam).size()));	//get one of possible timeslots
 			this.assignment.put(exam, slot);
