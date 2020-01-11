@@ -76,10 +76,11 @@ public class Population {
 		System.out.println("	crossover: "+this.genOpProbabilities[0]);
 		System.out.println("	mutation: "+this.genOpProbabilities[1]);
 		System.out.println("");
-		
+		/*
 		try {																										//TODO: remove this waiting block
 			Thread.sleep(250);
 		} catch (InterruptedException e) {}
+		*/
 	}
 	
 	private Individual[] hybridization(Individual[] offsprings) {
@@ -112,8 +113,8 @@ public class Population {
 		
 		List<Integer> res = new LinkedList<Integer>();						//result list with all selected elements
 		Random generator = new Random();									//random number generator
-		
-		for(int i = 0; i<n; i++) {											//do the following N times:
+		int i;
+		for(i=0; i<n; i++) {												//do the following N times:
 			int incremental = 0;											//accumulator for finding the key
 			int random = generator.nextInt(getSum(orderedCopy));			//get an int in range [0, sumOfFitnesses*1000-1]
 			/*
@@ -121,11 +122,18 @@ public class Population {
 			System.out.println(getSum(orderedCopy));
 			System.out.println(random);
 			*/
+			int j=0;
 			for(Map.Entry<Integer, Float> e : orderedCopy.entrySet()) {		//loop on the ordered entries
+				j++;
 				incremental+=(int)(e.getValue()*1000);						//increase by value until reach random number
 				if(incremental>random) {									//when found
 					res.add(e.getKey());									//add element to result list
 					orderedCopy.remove(e.getKey());							//remove element from map to avoid repetitions
+					break;
+				}
+				if(j==orderedCopy.size()) {									//it means it was picked the last element
+					res.add(e.getKey());									//add element to result list
+					orderedCopy.remove(e.getKey());							//remove element from map to avoid repetitions (might be useless)
 					break;
 				}
 			}
@@ -135,6 +143,17 @@ public class Population {
 		System.out.println(copy);
 		System.out.println(orderedCopy);
 		System.out.println(res);
+		*/
+		/*
+		if (res.size() != n) {
+			System.out.println("---THERES A PROBLEM IN YOUR FUNTION---");
+			System.out.println("n: "+n);
+			System.out.println("m: "+m);
+			System.out.println("copy: "+copy);
+			System.out.println("orderedCopy: "+orderedCopy);
+			System.out.println("res: "+res);
+			System.exit(1);
+		}
 		*/
 		return res;
 	}
@@ -197,23 +216,7 @@ public class Population {
 			
 			
 			//1. Select individuals for reproduction
-			//List<Integer> parents = selectNbyFitness(fitnessMap, individualsToUpdatePerIteration);
-			Map<Integer, Float> strongestFitnessMap =										//Map with the elements to reproduce (plus one)
-				    fitnessMap.entrySet().stream()											//i.e. if want to reproduce 2 elements --> map has 3
-				       .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))		//and one of them will be removed randomly
-				       .limit(individualsToUpdatePerIteration+1)
-				       .collect(Collectors.toMap(
-				    		   Map.Entry::getKey, Map.Entry::getValue, (e1,e2) -> e1, LinkedHashMap::new));
-			Random q = new Random();														//Get a random number in range [0, individualsToUpdatePerIteration+1]
-			int indexOfElemToBeRemoved = q.nextInt(individualsToUpdatePerIteration+1);		//that will correspond to the position of one of the elements in the map
-			for(int i : strongestFitnessMap.keySet()) {										//the element will be removed in order to have a kind of
-				if (indexOfElemToBeRemoved == 0) {											//randomization in the choice of the best elements to reproduce
-					strongestFitnessMap.remove(i);
-					break;
-				}
-				indexOfElemToBeRemoved--;
-			}																				//strongestFitnessMap now contains the (randomized) individuals to reproduce
-			//System.out.println(strongestFitnessMap);
+			List<Integer> parents = selectNbyFitness(fitnessMap, individualsToUpdatePerIteration);
 			
 			//2. Reproduction
 			this.adjustProbabilities();													//Rebalance probabilities according to elapsed time
@@ -225,7 +228,7 @@ public class Population {
 			int tmpElem = -1;															//to store temporarily an element before crossover
 			
 			System.out.println("Reproducing by: ");
-			for (int i : strongestFitnessMap.keySet()){									//loop on the IDs of the individuals to reproduce
+			for (int i : parents){									//loop on the IDs of the individuals to reproduce
 				//System.out.println("CURRENT POPULATION: ");
 				//for (Individual k : pop) {
 				//	System.out.println(k.getId());
