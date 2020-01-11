@@ -18,7 +18,7 @@ public class Individual {
 	//private static final int MAX_ITER = 12;
 	//private static final int SEED = 42;
 	private static final int MAX_CROSSOVER_TRIES = 3;
-	
+
 	private Random rng = new Random();
 	
 	private Instance instance;
@@ -485,6 +485,7 @@ public class Individual {
 			}
 			this.timeslots.set(slot, incoming.get(slot));
 		}
+		System.out.println("");
 	}
 
 	// Crossover
@@ -498,10 +499,12 @@ public class Individual {
 		Individual p1, p2;	// p1 and p2 will be modified
 		computePenaltyPerSlot();
 
+		// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
 		Set<Integer> tabuSlots = new HashSet<>();
 		int nIterations = 0, slot;
-		int nSlots = (int)(percentage * instance.getNumberOfSlots());
+		int nSlots = (int)(percentage * instance.getNumberOfSlots()), nUsed = (int)Arrays.stream(this.penaltyPerSlot).filter(x -> x!=0).count();
 		nSlots = (nSlots < 1? 1 : nSlots);
+		nSlots = (nSlots > nUsed? nUsed : nSlots);
 		
 		while (nIterations < MAX_CROSSOVER_TRIES && instance.getNumberOfSlots()-tabuSlots.size() > nSlots) {
 			// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
@@ -531,8 +534,8 @@ public class Individual {
 				p1.fitness = 1 / p1.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
 			}
 			catch (CrossoverInsertionFailedException e) {
-				int banned = this.assignment.get(e.getFailedReinsertedExam());
-				tabuSlots.add(banned);
+				for(int exam : e.getFailedReinsertedExam())
+					tabuSlots.add(this.assignment.get(exam));
 				nSlots = (nSlots-1 < 1? 1 : nSlots-1);
 				nIterations++;
 				continue;
@@ -545,30 +548,12 @@ public class Individual {
 				p2.fitness = 1 / p2.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
 			}
 			catch (CrossoverInsertionFailedException e) {
-				int banned = parent2.assignment.get(e.getFailedReinsertedExam());
-				tabuSlots.add(banned);
+				for(int exam : e.getFailedReinsertedExam())
+					tabuSlots.add(parent2.assignment.get(exam));
 				nSlots = (nSlots-1 < 1? 1 : nSlots-1);
 				nIterations++;
 				continue;
 			}
-			/*try {
-				p1.xoverReinsertMissingExams(p1.timeslots.get(0));
-				p2.xoverReinsertMissingExams(p2.timeslots.get(0));
-				p1.timeslots.get(0).clear(); p2.timeslots.get(0).clear();
-				p1.individualId=newId();
-				p2.individualId=newId();
-				p1.fitness = 1 / p1.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
-				p2.fitness = 1 / p2.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());
-				ret.add(p1); ret.add(p2);		// feasible solutions reached, this is what will be returned
-			}
-			catch (CrossoverInsertionFailedException e) {	// failed to get back to feasibility, return parents
-				Individual A = this.clone();
-				Individual B = parent2.clone();
-				A.individualId=newId();
-				B.individualId=newId();
-				ret.add(A);	// "this" is parent 1
-				ret.add(B);
-			}*/
 			// I am here if everything else above succeeded, so I have two feasible children.
 			ret.add(p1); ret.add(p2);
 			return ret;
@@ -580,6 +565,7 @@ public class Individual {
 		B.individualId=newId();
 		ret.add(A);	// "this" is parent 1
 		ret.add(B);
+
 		return ret;
 	}
 
@@ -598,20 +584,22 @@ public class Individual {
 					possible.get(exam).add(slot);
 				
 		int size, nfails = 0;
+		List<Integer> failed = new ArrayList<>();
 		for(int exam : missingExams) {		//inizialization, maps a slot to the number of slot that can be placed there
 			size = possible.get(exam).size();
 			if(size <= 0) {
 				System.out.println("No possible slot for exam " + exam + ", exit!");
+				failed.add(exam);
 				nfails ++;	
 				continue;	
-			}	
-			if (nfails > 0)	{	
-				System.out.println("Total not placeable exams: " + nfails);
-				throw new CrossoverInsertionFailedException(exam);
 			}
 			if(!numPossible.containsKey(size))
 				numPossible.put(size, new ArrayList<>());
 			numPossible.get(size).add(exam);
+		}
+		if (nfails > 0)	{	
+			System.out.println("Total not placeable exams: " + nfails);
+			throw new CrossoverInsertionFailedException(failed);
 		}
 		
 		Integer exam, first, slot;

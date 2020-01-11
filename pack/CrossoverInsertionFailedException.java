@@ -1,21 +1,27 @@
 package pack;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @SuppressWarnings("serial")
 public class CrossoverInsertionFailedException extends Exception {
-	private Integer failedReinsertedExam = -1;
+	private List<Integer> failedReinsertedExam = new ArrayList<>();
 
-	public CrossoverInsertionFailedException(Integer failedReinsertedExam) {
+	public CrossoverInsertionFailedException(Integer failed) {
 		super();
-		this.failedReinsertedExam = failedReinsertedExam;
+		this.failedReinsertedExam.add(failed);
+	}
+	
+	public CrossoverInsertionFailedException(List<Integer> failed) {
+		super();
+		this.failedReinsertedExam = failed;
 	}
 
-	public Integer getFailedReinsertedExam() {
+	public List<Integer> getFailedReinsertedExam() {
 		return failedReinsertedExam;
 	}
 
 	public CrossoverInsertionFailedException() {
 		// TODO Auto-generated constructor stub
 	}
-	
-	
 }
