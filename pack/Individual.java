@@ -252,7 +252,7 @@ public class Individual {
 	// Move an exam from its current assignment to a destination timeslot (use in conjunction with acceptabilities
 	public void moveExam(Integer exam, Integer destTimeslot) {
 		Integer formerSlot = assignment.get(exam);
-		System.out.println("Moving exam " + exam + " in slot " + destTimeslot);
+		//System.out.println("Moving exam " + exam + " in slot " + destTimeslot);
 
 		// Move the exam in the assignments and temporarily remove it from timeslots for computations
 		timeslots.get(formerSlot).remove(exam);
@@ -313,8 +313,8 @@ public class Individual {
 					other = this.assignment.get(i);		//timeslot of exam i
 					if(other > slot && other <= endIndex) {
 						res = (float) (Math.pow(2, 5 - Math.abs(slot - other))*conflicts[i]); 	//if the two exams are in same slot conflicts[i]==0
-						penaltyPerSlot[slot] += res;
-						penaltyPerSlot[other] += res;
+						penaltyPerSlot[slot] += (int) res;
+						penaltyPerSlot[other] += (int) res;
 					}
 				}
 			}
@@ -336,75 +336,79 @@ public class Individual {
 
 	// Select two slots in a probabilistic manner and swap them
 	public Individual swapSlots() {
+		Individual modify = this.clone();
+		Individual original = this.clone();
+		
 		int slot1 = 0, slot2 = 0;
-		computePenaltyPerSlot();
+		modify.computePenaltyPerSlot();
 		System.out.println("\nStarting slot swapping...");
-		slot1 = randomSlotByProbability(penaltyPerSlot);
-		slot2 = randomSlotByProbability(penaltyPerSlot);
+		slot1 = randomSlotByProbability(modify.penaltyPerSlot);
+		slot2 = randomSlotByProbability(modify.penaltyPerSlot);
 
 		if(slot1 == slot2)  {
 			System.out.println("Slot " + slot1 + " extracted two times, exit");
-			this.individualId = this.newId();
-			return this;
+			original.individualId = newId();
+			return original;
 		}
 
 		System.out.println("Swapping exams " + slot1 + " and " + slot2 + "...");
 		//Integer[][] matrix = instance.getConflictMatrix();
 		//update assignments, fitness and acceptabilities
-		for(int exam : this.timeslots.get(slot1)) {
-			this.assignment.replace(exam, slot2);
+		for(int exam : modify.timeslots.get(slot1)) {
+			modify.assignment.replace(exam, slot2);
 			//updateFitness(exam, slot1, slot2, matrix);
 		}
-		for(int exam : this.timeslots.get(slot2)) {
-			this.assignment.replace(exam, slot1);
+		for(int exam : modify.timeslots.get(slot2)) {
+			modify.assignment.replace(exam, slot1);
 			//updateFitness(exam, slot2, slot1, matrix);
 		}
-		Collections.swap(this.timeslots, slot1, slot2);
+		Collections.swap(modify.timeslots, slot1, slot2);
 
 		System.out.println("Done!");
-		this.fitness = 1 / computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());	//inverse objective function
-		this.acceptableExamsPerTimeslot = computeAcceptabilitiesPerTimeslot();
-		this.individualId = this.newId();
-		return this;
+		modify.fitness = 1 / modify.computePenalty(instance.getConflictMatrix(), instance.getNumberOfStudents());	//inverse objective function
+		modify.acceptableExamsPerTimeslot = modify.computeAcceptabilitiesPerTimeslot();
+		modify.individualId = newId();
+		return modify;
 	}
 
 	//empty an expensive timeslot and try to move the exams, TODO: decide if destination is slot that contributes more or less to total penalty
 	public Individual desrupt() {
 		//Random rng = new Random();
+		Individual modify = this.clone();
 		System.out.println("\nStarting slot destruction...");
-		this.computePenaltyPerSlot();
+		modify.computePenaltyPerSlot();
 		int slot = 0, minp, newSlot = 0;
 		List<Integer> possibleSlots = new ArrayList<>();
-		slot = randomSlotByProbability(penaltyPerSlot);
+		slot = randomSlotByProbability(modify.penaltyPerSlot);
 
 		System.out.println("Slot " + slot + " extracted");
-		List<Integer> exams = new ArrayList<>(this.timeslots.remove(slot));
+		List<Integer> exams = new ArrayList<>(modify.timeslots.remove(slot));
 		Collections.shuffle(exams);
-		this.timeslots.add(slot, new HashSet<>());
-		this.acceptableExamsPerTimeslot.get(slot).addAll(exams);
+		modify.timeslots.add(slot, new HashSet<>());
+		modify.acceptableExamsPerTimeslot.get(slot).addAll(exams);
 		for(int exam : exams) {
 			if(exam == 0)
 				continue;
 			minp = Integer.MAX_VALUE;	//we consider slots with minimum contribution
-			for(int i = 1; i < this.acceptableExamsPerTimeslot.size(); i++) {
-				if(this.acceptableExamsPerTimeslot.get(i).contains(exam) && this.penaltyPerSlot[i] <= minp) {	//if a slot can accept the exam and has lowest contribution
-					if(this.penaltyPerSlot[i] < minp) {		//new lowest contribution
-						minp = this.penaltyPerSlot[i];
+			for(int i = 1; i < modify.acceptableExamsPerTimeslot.size(); i++) {
+				if(modify.acceptableExamsPerTimeslot.get(i).contains(exam) && modify.penaltyPerSlot[i] <= minp) {	//if a slot can accept the exam and has lowest contribution
+					if(modify.penaltyPerSlot[i] < minp) {		//new lowest contribution
+						minp = modify.penaltyPerSlot[i];
 						possibleSlots.clear();
 					}
 					possibleSlots.add(i);
 				}
 			}
 			newSlot = possibleSlots.get(rng.nextInt(possibleSlots.size()));		//randomly select one of available slots with lowest penalty
-			this.assignment.put(exam, newSlot);
-			this.timeslots.get(newSlot).add(exam);
+			modify.assignment.put(exam, newSlot);
+			modify.timeslots.get(newSlot).add(exam);
 			System.out.println("Exam " + exam + " moved to slot " + newSlot);
-			this.updateFitness(exam, slot, newSlot, instance.getConflictMatrix());
-			this.updateAcceptabilities(exam, slot, newSlot, instance.getConflictMatrix());
+			modify.updateFitness(exam, slot, newSlot, instance.getConflictMatrix());
+			modify.updateAcceptabilities(exam, slot, newSlot, instance.getConflictMatrix());
 		}
 		System.out.println("Done!");
-		this.individualId = this.newId();
-		return this;
+		modify.individualId = newId();
+		return modify;
 	}
 
 	// Create a new Individual, copy of the first (beware of references)
@@ -481,7 +485,7 @@ public class Individual {
 	private void xoverInsertOtherTimeslots(Map<Integer, Set<Integer>> incoming) {
 		for (Integer slot : incoming.keySet()) {
 			for (Integer exam : incoming.get(slot)) {
-				System.out.println("Exam " + exam + " placed in slot " + slot);
+				//System.out.println("Exam " + exam + " placed in slot " + slot);
 				this.assignment.replace(exam, slot);
 			}
 			this.timeslots.set(slot, incoming.get(slot));
@@ -498,7 +502,7 @@ public class Individual {
 	public List<Individual> crossover(Individual parent2, float percentage){
 		List<Individual> ret = new ArrayList<>();
 		Individual p1, p2;	// p1 and p2 will be modified
-		computePenaltyPerSlot();
+		this.computePenaltyPerSlot(); parent2.computePenaltyPerSlot();
 
 		// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
 		Set<Integer> tabuSlots = new HashSet<>();
@@ -506,12 +510,15 @@ public class Individual {
 		int nSlots = (int)(percentage * instance.getNumberOfSlots()), nUsed = (int)Arrays.stream(this.penaltyPerSlot).filter(x -> x!=0).count();
 		nSlots = (nSlots < 1? 1 : nSlots);
 		nSlots = (nSlots > nUsed? nUsed : nSlots);
+		int[] combinedP = new int[this.penaltyPerSlot.length];
+		for (int i=1; i<combinedP.length; i++)
+			combinedP[i] = (this.penaltyPerSlot[i] + parent2.penaltyPerSlot[i]);
 		
 		while (nIterations < MAX_CROSSOVER_TRIES && instance.getNumberOfSlots()-tabuSlots.size() > nSlots) {
 			// Choose the timeslots to use for crossover probabilistically, based on penalty (on both sides): maybe moving a timeslot to the other solution improves it
 			Set<Integer> electedSlots = new HashSet<>();
 			while (electedSlots.size() < nSlots) {
-				slot = randomSlotByProbability(this.penaltyPerSlot);
+				slot = randomSlotByProbability(combinedP);
 				if (!tabuSlots.contains(slot))
 					electedSlots.add(slot);
 			}	
@@ -589,7 +596,7 @@ public class Individual {
 		for(int exam : missingExams) {		//inizialization, maps a slot to the number of slot that can be placed there
 			size = possible.get(exam).size();
 			if(size <= 0) {
-				System.out.println("No possible slot for exam " + exam + ", exit!");
+				//System.out.println("No possible slot for exam " + exam + ", exit!");
 				failed.add(exam);
 				nfails ++;	
 				continue;	
@@ -617,7 +624,7 @@ public class Individual {
 			this.assignment.put(exam, slot);
 			this.timeslots.get(slot).add(exam);
 			this.updateAcceptabilities(exam, 0, slot, instance.getConflictMatrix());
-			System.out.println("Exam " + exam + " placed in slot " + slot);
+			//System.out.println("Exam " + exam + " placed in slot " + slot);
 			possible.remove(exam);		//exam is assigned, is removed
 
 			for(int i = 1; i < conflicts.length; i++) {		//update possible slots based on conflicts

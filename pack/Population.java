@@ -211,6 +211,7 @@ public class Population {
 			avgFit1/=popSize;
 			System.out.println("Beginning statistics:");
 			System.out.println("	best fitness: "+bestFit1);
+			System.out.println("        lowest penalty: "+1/bestFit1);
 			System.out.println("	average fitness: "+avgFit1);
 			System.out.println("");
 			//System.out.println(fitnessMap);
