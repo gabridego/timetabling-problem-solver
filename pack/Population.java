@@ -21,12 +21,15 @@ public class Population {
 	private float[] genOpProbabilities;
 	private String outputFile;
 	
+	// TODO: no godsIntervention if too late
+	// TODO: salvaculo for writing best solution
+	
 	//Arbitrary parameters (NOT BAD at 0.9 0.1 0.7)
 	final private float crossover = (float) 0.9;
 	final private float mutation = (float) 0.1;
 	final private float maxMovingProbability = (float) 0.9;
 	
-	final private int MAXFLATITERATIONS = 250;
+	final private int MAXFLATITERATIONS = 750;
 	
 	public Population(Integer popSize, Instance instance, float percentage, long start, long duration, String outputFile) {
 		this.popSize = popSize;
@@ -165,11 +168,49 @@ public class Population {
 	}
 	
 	private void godsIntervention(Individual best) {
-		System.exit(1);
+		
+		// TODO: remove
+				System.out.println("Beginning of gods intervention.");
+				try {
+					Thread.sleep(1000);
+				}
+				catch (Exception e) {
+					System.out.println("Bratta");
+				}
+				//
+		Random r = new Random();
+		for (int i=0; i<pop.length; i++) {
+			Individual adam = pop[i].clone();
+			for (int j=0; j<r.nextInt(2)+1; j++)
+				adam = adam.desrupt();
+			for (int j=0; j<r.nextInt(3)+1; j++)
+				adam = adam.mutate();
+			pop[i] = adam;
+		}
 		return;
 	}
 	
 	private void godsMercy(Individual best) {
+		int worst = 0;
+		float highPenalty = Float.MIN_VALUE;
+		for (int i=0; i<pop.length; i++) {
+			if (pop[i].getPenalty() > highPenalty) {
+				worst = i;
+				highPenalty = pop[i].getPenalty();
+			}
+		}
+		pop[worst] = best;
+		
+		// TODO: remove
+		System.out.println("End of gods intervention.");
+		try {
+			Thread.sleep(5000);
+		}
+		catch (Exception e) {
+			System.out.println("Bratta");
+		}
+		//
+		
 		return;
 	}
 	
@@ -427,7 +468,7 @@ public class Population {
 				if(numberOfFlatIterations<=0) {
 					godsInterventionActive = false;
 					numberOfFlatIterations = 0;
-					godsMercy(globalBest);
+					//godsMercy(globalBest);
 				}
 			}
 			
