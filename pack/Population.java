@@ -198,7 +198,7 @@ public class Population {
 		Random rand = new Random();
 		
 		// 0. Initial data structure allocation:
-		float avgFit1=(float) 0.0, bestFit1=(float) 0.0, bestPenalty1 = (float) 0.0;
+		float avgFit1=(float) 0.0, bestFit1=(float) 0.0, bestPenalty1 = (float) 0.0, bestPenalty2;
 		Map<Integer,Float> fitnessMap = new HashMap<>(); 								// build a map to store couples: individualId - fitness
 		OptionalDouble worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
 		float worstPenalty = (float) worstOptional.getAsDouble();
@@ -210,6 +210,7 @@ public class Population {
 				bestPenalty1 = i.getPenalty();
 			}
 		}
+		bestPenalty2 = bestPenalty1;
 		avgFit1/=popSize;
 		
 		//System.out.println(fitnessMap);
@@ -223,7 +224,7 @@ public class Population {
 				//at next iterations --> the one recreated at the end of the loop (before printing results)
 			System.out.println("Beginning statistics:");
 			System.out.println("	best fitness: "+bestFit1);
-			System.out.println("        lowest penalty: "+bestPenalty1);
+			System.out.println("        lowest penalty: "+bestPenalty2);
 			System.out.println("	average fitness: "+avgFit1);
 			System.out.println("");
 			
@@ -340,7 +341,7 @@ public class Population {
 			}
 
 			
-			float avgFit2=(float) 0.0, bestFit2=(float) 0.0, bestPenalty2 = (float) 0.0;
+			float avgFit2=(float) 0.0, bestFit2=(float) 0.0;
 			worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
 			worstPenalty = (float) worstOptional.getAsDouble();
 			for (Individual i : pop) {
@@ -365,7 +366,6 @@ public class Population {
 			}
 			avgFit1 = avgFit2;											//beginning statistics at next iteration = end statistics of this iteration
 			bestFit1=bestFit2;
-			bestPenalty2=bestPenalty1;
 			
 			//4. Save results
 			int keyOfBestSol = fitnessMap.entrySet().stream().max((entry1, entry2) -> entry1.getValue() > entry2.getValue() ? 1 : -1).get().getKey();	//Find optimal solution
