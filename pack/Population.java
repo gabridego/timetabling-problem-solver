@@ -26,6 +26,8 @@ public class Population {
 	final private float mutation = (float) 0.1;
 	final private float maxMovingProbability = (float) 0.9;
 	
+	final private int MAXFLATITERATIONS = 250;
+	
 	public Population(Integer popSize, Instance instance, float percentage, long start, long duration, String outputFile) {
 		this.popSize = popSize;
 		this.outputFile = outputFile+"_DMOgroup07.sol";
@@ -162,6 +164,15 @@ public class Population {
 		return res;
 	}
 	
+	private void godsIntervention(Individual best) {
+		System.exit(1);
+		return;
+	}
+	
+	private void godsMercy(Individual best) {
+		return;
+	}
+	
 	public void evolve() {
 		//Method to be called on the Population object to start the evolutionary process after initialization
 		/*
@@ -199,6 +210,11 @@ public class Population {
 		float bestFit = -1;
 		Random rand = new Random();
 		
+		boolean godsInterventionActive=false;
+		int numberOfFlatIterations = 0;
+		Individual globalBest=null;
+		float previousPenalty = (float) Float.MAX_VALUE;
+		
 		// 0. Initial data structure allocation:
 		float avgFit1=(float) 0.0, bestFit1=(float) 0.0, bestPenalty1 = (float) 0.0, bestPenalty2;
 		Map<Integer,Float> fitnessMap = new HashMap<>(); 								// build a map to store couples: individualId - fitness
@@ -213,6 +229,7 @@ public class Population {
 			}
 		}
 		bestPenalty2 = bestPenalty1;
+		previousPenalty = bestPenalty2;
 		avgFit1/=popSize;
 		
 		//System.out.println(fitnessMap);
@@ -232,6 +249,14 @@ public class Population {
 			
 			//1. Select individuals for reproduction
 			List<Integer> parents = selectNbyFitness(fitnessMap, individualsToUpdatePerIteration);
+			
+
+			float tmpMinPen = Float.MAX_VALUE;
+			for (Individual i : pop)
+				if (i.getPenalty()<tmpMinPen) {
+					tmpMinPen=i.getPenalty();
+				}
+			previousPenalty = tmpMinPen;
 			
 			//2. Reproduction
 			this.adjustProbabilities();													//Rebalance probabilities according to elapsed time
@@ -363,6 +388,48 @@ public class Population {
 			System.out.println("	average fitness improvement: "+(avgFit2-avgFit1));
 			System.out.println("    Improvements per GA operator: crossover="+crossoverImproves+ " | mutation="+mutationImproves);
 			System.out.println("");
+			
+			
+			//God's intervention is put here because it is just before the fitnessMap refresh
+			if (previousPenalty!=bestPenalty2 && godsInterventionActive==false) {
+				numberOfFlatIterations = 0;
+			} else if(godsInterventionActive==false) {
+				numberOfFlatIterations++;
+			}
+			
+			if (numberOfFlatIterations==MAXFLATITERATIONS) {
+				globalBest=null;
+				godsInterventionActive = true;
+				for (Individual ind : pop) {
+					if(ind.getPenalty()==bestPenalty2) {
+						globalBest = ind.clone();
+					}
+				}
+				if (globalBest==null) {
+					//emergency measures (shouldn't happen, it's just for code robustness)
+					godsInterventionActive = false;
+					numberOfFlatIterations = 0;
+				} else {
+					godsIntervention(globalBest);
+					avgFit2=(float) 0.0; bestFit2=(float) 0.0;
+					for (Individual i : pop) {
+						avgFit2 += i.getFitness(worstPenalty);
+						if (i.getFitness(worstPenalty)>bestFit2) {
+							bestFit2=i.getFitness(worstPenalty);
+							bestPenalty2 = i.getPenalty();
+						}
+					}
+				}
+			}
+			
+			if(godsInterventionActive) {
+				numberOfFlatIterations--;
+				if(numberOfFlatIterations<=0) {
+					godsInterventionActive = false;
+					numberOfFlatIterations = 0;
+					godsMercy(globalBest);
+				}
+			}
 			
 			
 			// "0". Data structure refresh:
