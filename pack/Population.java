@@ -24,7 +24,7 @@ public class Population {
 	//Arbitrary parameters (NOT BAD at 0.9 0.1 0.7)
 	final private float crossover = (float) 0.9;
 	final private float mutation = (float) 0.1;
-	final private float maxMovingProbability = (float) 0.7;
+	final private float maxMovingProbability = (float) 0.9;
 	
 	public Population(Integer popSize, Instance instance, float percentage, long start, long duration, String outputFile) {
 		this.popSize = popSize;
@@ -196,31 +196,36 @@ public class Population {
 		int iteratCnt = 1;
 		float bestFit = -1;
 		Random rand = new Random();
+		
+		// 0. Initial data structure allocation:
+		float avgFit1=(float) 0.0, bestFit1=(float) 0.0, bestPenalty1 = (float) 0.0;
+		Map<Integer,Float> fitnessMap = new HashMap<>(); 								// build a map to store couples: individualId - fitness
+		OptionalDouble worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
+		float worstPenalty = (float) worstOptional.getAsDouble();
+		for (Individual i : pop) {
+			fitnessMap.put(i.getId(), i.getFitness(worstPenalty));
+			avgFit1 += i.getFitness(worstPenalty);
+			if (i.getFitness(worstPenalty)>bestFit1) {
+				bestFit1=i.getFitness(worstPenalty);
+				bestPenalty1 = i.getPenalty();
+			}
+		}
+		avgFit1/=popSize;
+		
+		//System.out.println(fitnessMap);
+					
 		while(iteratCnt>0 && (System.nanoTime()-start)<duration) {							//Endless loop - TODO: remove time constraint
 			System.out.println("Iteration: "+iteratCnt);
 			System.out.println("");
 			
-			// 0. Data structure allocation:
-			float avgFit1=(float) 0.0, bestFit1=(float) 0.0, bestPenalty1 = (float) 0.0;
-			Map<Integer,Float> fitnessMap = new HashMap<>(); 								// build a map to store couples: individualId - fitness
-			OptionalDouble worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
-			float worstPenalty = (float) worstOptional.getAsDouble();
-			for (Individual i : pop) {
-				fitnessMap.put(i.getId(), i.getFitness(worstPenalty));
-				avgFit1 += i.getFitness(worstPenalty);
-				if (i.getFitness(worstPenalty)>bestFit1) {
-					bestFit1=i.getFitness(worstPenalty);
-					bestPenalty1 = i.getPenalty();
-				}
-			}
-			avgFit1/=popSize;
+			//WARNING: the used fitnessMap is:
+				//at first iteration --> the one created above the loop start
+				//at next iterations --> the one recreated at the end of the loop (before printing results)
 			System.out.println("Beginning statistics:");
 			System.out.println("	best fitness: "+bestFit1);
 			System.out.println("        lowest penalty: "+bestPenalty1);
 			System.out.println("	average fitness: "+avgFit1);
 			System.out.println("");
-			//System.out.println(fitnessMap);
-			
 			
 			//1. Select individuals for reproduction
 			List<Integer> parents = selectNbyFitness(fitnessMap, individualsToUpdatePerIteration);
@@ -234,7 +239,7 @@ public class Population {
 			boolean crossoverFlag = false;												//crossover takes two elements --> this is needed to skip an element
 			int tmpElem = -1;															//to store temporarily an element before crossover
 			
-			System.out.println("Reproducing by: ");
+			//System.out.println("Reproducing by: ");
 			for (int i : parents){									//loop on the IDs of the individuals to reproduce
 				//System.out.println("CURRENT POPULATION: ");
 				//for (Individual k : pop) {
@@ -265,18 +270,18 @@ public class Population {
 					}
 					
 					crossoverFlag=false;												//mark crossover as happened
-					System.out.println("	crossover (end)");
+					//System.out.println("	crossover (end)");
 					continue;															//go to next element
 				}
 																						//Pick gen. op according to generated number and probabilities
 				if (r<=genOpProbabilities[0]*100 && (individualsToUpdatePerIteration-reproducedElem)>1) { //crossover can be one if there are at least 2 elements to reproduce
-					System.out.println("	crossover (start)");
+					//System.out.println("	crossover (start)");
 					crossoverFlag = true;												//flag that crossover is picked, setting up and ready to happen
 					tmpElem=i;															//store the ID of this individual
 					reproducedElem++;													//mark it as reproduced
 					continue;															//go to next element
 				} else {
-					System.out.println("	mutation");
+					//System.out.println("	mutation");
 					Individual A=null;
 					for (Individual ind : pop) {										//find the two individuals
 						//System.out.println("Looking for "+i+" and found "+ind.getId());
@@ -308,7 +313,7 @@ public class Population {
 			}
 					
 			//Hybridization step:
-			offsprings = this.hybridization(offsprings);
+			//offsprings = this.hybridization(offsprings);	//TODO: remove this from this class and from Individual
 			
 			
 			//3. Population updating
@@ -335,11 +340,14 @@ public class Population {
 			}
 
 			
-			float avgFit2=(float) 0.0, bestFit2=(float) 0.0;
+			float avgFit2=(float) 0.0, bestFit2=(float) 0.0, bestPenalty2 = (float) 0.0;
+			worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
+			worstPenalty = (float) worstOptional.getAsDouble();
 			for (Individual i : pop) {
 				avgFit2 += i.getFitness(worstPenalty);
 				if (i.getFitness(worstPenalty)>bestFit2) {
 					bestFit2=i.getFitness(worstPenalty);
+					bestPenalty2 = i.getPenalty();
 				}
 			}
 			avgFit2/=popSize;
@@ -348,6 +356,16 @@ public class Population {
 			System.out.println("	average fitness improvement: "+(avgFit2-avgFit1));
 			System.out.println("");
 			
+			
+			// "0". Data structure refresh:
+			fitnessMap = new HashMap<>(); 								// re-build a map to store couples: individualId - fitness (updated with new individuals)
+
+			for (Individual i : pop) {
+				fitnessMap.put(i.getId(), i.getFitness(worstPenalty));
+			}
+			avgFit1 = avgFit2;											//beginning statistics at next iteration = end statistics of this iteration
+			bestFit1=bestFit2;
+			bestPenalty2=bestPenalty1;
 			
 			//4. Save results
 			int keyOfBestSol = fitnessMap.entrySet().stream().max((entry1, entry2) -> entry1.getValue() > entry2.getValue() ? 1 : -1).get().getKey();	//Find optimal solution
