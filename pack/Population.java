@@ -104,7 +104,9 @@ public class Population {
 		
 		Map<Integer, Float> copy = new HashMap<>();							//create a copy that can be modified
 		for (Map.Entry<Integer,Float> entry : m.entrySet()) {
-			copy.put(entry.getKey(), entry.getValue());
+			Float value = entry.getValue();
+			if (value < 0.001) value = (float) 0.001;
+			copy.put(entry.getKey(), value);
 		}
 		
 		Map<Integer, Float> orderedCopy =									//sorted version (descending value) --> give precedence to highest fitness ones
@@ -192,7 +194,7 @@ public class Population {
 		System.out.println("Beginning evolution:");
 		
 
-		
+		int crossoverImproves = 0, mutationImproves = 0;
 		int iteratCnt = 1;
 		float bestFit = -1;
 		Random rand = new Random();
@@ -200,7 +202,7 @@ public class Population {
 		// 0. Initial data structure allocation:
 		float avgFit1=(float) 0.0, bestFit1=(float) 0.0, bestPenalty1 = (float) 0.0, bestPenalty2;
 		Map<Integer,Float> fitnessMap = new HashMap<>(); 								// build a map to store couples: individualId - fitness
-		OptionalDouble worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
+		OptionalDouble worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).average();
 		float worstPenalty = (float) worstOptional.getAsDouble();
 		for (Individual i : pop) {
 			fitnessMap.put(i.getId(), i.getFitness(worstPenalty));
@@ -239,6 +241,7 @@ public class Population {
 			int reproducedElem = 0;														//keep count of how many reproduced up to now
 			boolean crossoverFlag = false;												//crossover takes two elements --> this is needed to skip an element
 			int tmpElem = -1;															//to store temporarily an element before crossover
+			boolean mutationFlag = false, improved = false;												// for statistics
 			
 			//System.out.println("Reproducing by: ");
 			for (int i : parents){									//loop on the IDs of the individuals to reproduce
@@ -283,6 +286,7 @@ public class Population {
 					continue;															//go to next element
 				} else {
 					//System.out.println("	mutation");
+					mutationFlag = true;
 					Individual A=null;
 					for (Individual ind : pop) {										//find the two individuals
 						//System.out.println("Looking for "+i+" and found "+ind.getId());
@@ -347,12 +351,17 @@ public class Population {
 				if (i.getFitness(worstPenalty)>bestFit2) {
 					bestFit2=i.getFitness(worstPenalty);
 					bestPenalty2 = i.getPenalty();
+					improved = true;
 				}
 			}
+			if (improved)
+				if (mutationFlag) mutationImproves++;
+				else crossoverImproves++;
 			avgFit2/=popSize;
 			System.out.println("Ending statistics:");
 			System.out.println("	best fitness improvement: "+(bestFit2-bestFit1));
 			System.out.println("	average fitness improvement: "+(avgFit2-avgFit1));
+			System.out.println("    Improvements per GA operator: crossover="+crossoverImproves+ " | mutation="+mutationImproves);
 			System.out.println("");
 			
 			
@@ -385,7 +394,7 @@ public class Population {
 				}
 			}
 			
-			worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
+			worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).average();
 			worstPenalty = (float) worstOptional.getAsDouble();
 			
 			iteratCnt++;

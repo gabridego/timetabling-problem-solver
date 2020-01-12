@@ -34,7 +34,7 @@ public class Main {
 			e.printStackTrace();
 		}
 		System.out.println(ind.getFitness());*/
-		Population pop = new Population(4,instance, 50, start, dur, args[0]); //(popSize, instance, %popSubstituted, startTime, algorithmDuration)
+		Population pop = new Population(10,instance, 90, start, dur, args[0]); //(popSize, instance, %popSubstituted, startTime, algorithmDuration)
 		System.out.println(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		/*int i=0;
 		for(Individual ind : pop.getPopulation())
