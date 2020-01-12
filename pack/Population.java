@@ -342,8 +342,6 @@ public class Population {
 
 			
 			float avgFit2=(float) 0.0, bestFit2=(float) 0.0;
-			worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
-			worstPenalty = (float) worstOptional.getAsDouble();
 			for (Individual i : pop) {
 				avgFit2 += i.getFitness(worstPenalty);
 				if (i.getFitness(worstPenalty)>bestFit2) {
@@ -386,6 +384,9 @@ public class Population {
 					break;
 				}
 			}
+			
+			worstOptional = Arrays.stream(pop).map(Individual::getPenalty).mapToDouble(Double::new).max();
+			worstPenalty = (float) worstOptional.getAsDouble();
 			
 			iteratCnt++;
 			System.out.println("");
