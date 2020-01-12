@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class Population {
@@ -21,15 +22,13 @@ public class Population {
 	private float[] genOpProbabilities;
 	private String outputFile;
 	
-	// TODO: no godsIntervention if too late
-	// TODO: salvaculo for writing best solution
-	
 	//Arbitrary parameters (NOT BAD at 0.9 0.1 0.7)
 	final private float crossover = (float) 0.9;
 	final private float mutation = (float) 0.1;
 	final private float maxMovingProbability = (float) 0.9;
 	
 	final private int MAXFLATITERATIONS = 750;
+	final private int GODTIMELIMIT = 15;	//number of seconds from the end from which cannot do godsIntervention anymore
 	
 	public Population(Integer popSize, Instance instance, float percentage, long start, long duration, String outputFile) {
 		this.popSize = popSize;
@@ -69,7 +68,6 @@ public class Population {
 	}
 	
 	private void adjustProbabilities() {
-		//TODO: possibly do something more in case crossover/mutation failed at previous iteration
 		float passedTimePercentage = (float) 100/( (float) duration / ( (float) (System.nanoTime()-this.start) ) );	//compute percentage of elapsed time
 		System.out.println(passedTimePercentage+"% of the available time has passed");
 																													//Starting from a fixed max amount of movable probability
@@ -84,7 +82,7 @@ public class Population {
 		System.out.println("	mutation: "+this.genOpProbabilities[1]);
 		System.out.println("");
 		/*
-		try {																										//TODO: remove this waiting block
+		try {																										
 			Thread.sleep(250);
 		} catch (InterruptedException e) {}
 		*/
@@ -201,7 +199,7 @@ public class Population {
 		}
 		pop[worst] = best;
 		
-		// TODO: remove
+		/*
 		System.out.println("End of gods intervention.");
 		try {
 			Thread.sleep(5000);
@@ -209,7 +207,7 @@ public class Population {
 		catch (Exception e) {
 			System.out.println("Bratta");
 		}
-		//
+		*/
 		
 		return;
 	}
@@ -221,7 +219,7 @@ public class Population {
 		 * 0. Allocate a structure for storing fitness of each population element 					--> DONE: map
 		 * 1. Select individuals for reproduction 													--> DONE
 		 * 	1.1 Decide how many must reproduce 															--> DONE: percentage passed as Population argument
-		 * 	1.2 Find the ones with best fitness 														--> W.I.P. TODO may randomize better
+		 * 	1.2 Find the ones with best fitness 														--> DONE
 		 * 2. Reproduction through some genetic operators											--> W.I.P.
 		 * 	2.1 Manage probabilistic aspect of genetic operator selection 								--> DONE: custom probability distribution system
 		 * 		(possibly with varying probabilities at runtime, this may exploit the time arg)
@@ -229,7 +227,7 @@ public class Population {
 		 *   2.1.2 Mutation to diversify (Comparison of best fitness with average fitness)				--> DONE
 		 * 	2.2 Apply one of the three genetic operators: 												--> DONE
 		 * 		crossover (standard/order/partiallyMapped), mutation, inversion
-		 *  2.3 Decide whether to improve offsprings or not through local search 						--> W.I.P. TODO implement local search
+		 *  2.3 Decide whether to improve offsprings or not through local search 						--> not DONE
 		 *  	(hybridization --> memetic algorithm) 
 		 * 3. Population updating																	--> W.I.P.
 		 * 	3.1 select whether to use Population replacement or Steady state and with which parameters 	--> DONE
@@ -254,6 +252,7 @@ public class Population {
 		boolean godsInterventionActive=false;
 		int numberOfFlatIterations = 0;
 		Individual globalBest=null;
+		Individual bestPrinted = null;
 		float previousPenalty = (float) Float.MAX_VALUE;
 		
 		// 0. Initial data structure allocation:
@@ -395,7 +394,7 @@ public class Population {
 				       .collect(Collectors.toMap(
 				    		   Map.Entry::getKey, Map.Entry::getValue, (e1,e2) -> e1, LinkedHashMap::new));
 			//System.out.println(weakestFitnessMap);
-			//TODO: add elitist approach to use in case individualsToUpdatePerIteration = popSize
+
 
 			int substituted = 0;																		//count how many inserted
 			for (int i : weakestFitnessMap.keySet()) {													//loop on the IDs of elements to substitute (to remove)
@@ -438,7 +437,8 @@ public class Population {
 				numberOfFlatIterations++;
 			}
 			
-			if (numberOfFlatIterations==MAXFLATITERATIONS) {
+
+			if (numberOfFlatIterations>=MAXFLATITERATIONS && duration-(System.nanoTime()-start)>TimeUnit.SECONDS.toNanos(GODTIMELIMIT)) {
 				globalBest=null;
 				godsInterventionActive = true;
 				for (Individual ind : pop) {
@@ -487,6 +487,38 @@ public class Population {
 
 			for (Individual ind : pop) {
 				if (ind.getId()==keyOfBestSol) {
+					
+					
+					if (bestPrinted == null) {
+						//print
+						try {
+							System.out.println("Lowest penalty: " + ind.getPenalty());
+							System.out.println("Printing results to: "+this.outputFile);
+							ind.printIndividual(this.outputFile);
+						} catch (IOException e) {
+							System.out.println("FAILED PRINTING RESULTS! R.I.P.");
+							e.printStackTrace();
+						}
+						//update bestPrinted
+						bestPrinted = ind.clone();
+					} else {
+						//check if what we try to print is better than what we printed
+						if(ind.getPenalty()<bestPrinted.getPenalty()) {
+							//print
+							try {
+								System.out.println("Lowest penalty: " + ind.getPenalty());
+								System.out.println("Printing results to: "+this.outputFile);
+								ind.printIndividual(this.outputFile);
+							} catch (IOException e) {
+								System.out.println("FAILED PRINTING RESULTS! R.I.P.");
+								e.printStackTrace();
+							}
+							//update bestPrinted
+							bestPrinted = ind.clone();
+						}
+					}
+					/*
+					
 					if(ind.getFitness(worstPenalty) > bestFit) {
 						try {
 							System.out.println("Lowest penalty: " + ind.getPenalty());
@@ -498,6 +530,8 @@ public class Population {
 						}
 						bestFit = ind.getFitness(worstPenalty);
 					}
+					*/
+					
 					break;
 				}
 			}
